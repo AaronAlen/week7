@@ -1,0 +1,168 @@
+{
+  "info": {
+    "name": "StockPilot REST API Collection",
+    "description": "Postman API Collection for StockPilot Intelligent Inventory Restock System with LangGraph HITL Workflow Agent",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:5000/api" },
+    { "key": "accessToken", "value": "" },
+    { "key": "refreshToken", "value": "" },
+    { "key": "threadId", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Register Admin",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"System Admin\",\n  \"email\": \"admin@stockpilot.io\",\n  \"password\": \"password123\",\n  \"role\": \"ADMIN\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/register", "host": ["{{baseUrl}}"], "path": ["auth", "register"] }
+          }
+        },
+        {
+          "name": "Login",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@stockpilot.io\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] }
+          }
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/auth/refresh", "host": ["{{baseUrl}}"], "path": ["auth", "refresh"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Products",
+      "item": [
+        {
+          "name": "Get Products Catalog",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/products", "host": ["{{baseUrl}}"], "path": ["products"] }
+          }
+        },
+        {
+          "name": "Create Product",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Smart LED Desk Lamp\",\n  \"description\": \"Dimmable LED desk lamp with wireless smartphone charging pad.\",\n  \"sku\": \"SKU-LAMP-010\",\n  \"currentStock\": 5,\n  \"safetyThreshold\": 15,\n  \"targetStock\": 40,\n  \"unitCost\": 35.00,\n  \"supplierName\": \"Lumina Tech\",\n  \"supplierEmail\": \"orders@luminatech.com\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/products", "host": ["{{baseUrl}}"], "path": ["products"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Inventory & Sales",
+      "item": [
+        {
+          "name": "Record Sale (Stock Reduction)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": 1,\n  \"quantity\": 5,\n  \"referenceId\": \"POSTMAN-SALE-001\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/inventory/sell", "host": ["{{baseUrl}}"], "path": ["inventory", "sell"] }
+          }
+        },
+        {
+          "name": "Get Transactions Audit Log",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/inventory/transactions", "host": ["{{baseUrl}}"], "path": ["inventory", "transactions"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Restock & LangGraph Agent",
+      "item": [
+        {
+          "name": "Trigger Restock Agent",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": 2\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/restocks/trigger", "host": ["{{baseUrl}}"], "path": ["restocks", "trigger"] }
+          }
+        },
+        {
+          "name": "Approve Restock (Resume HITL)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"threadId\": \"{{threadId}}\",\n  \"approved\": true\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/approve-restock", "host": ["{{baseUrl}}"], "path": ["approve-restock"] }
+          }
+        },
+        {
+          "name": "Receive Stock (ACID Transaction)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/restocks/1/receive", "host": ["{{baseUrl}}"], "path": ["restocks", "1", "receive"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Agent Audit Logs",
+      "item": [
+        {
+          "name": "Get Agent Logs",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/agent-logs", "host": ["{{baseUrl}}"], "path": ["agent-logs"] }
+          }
+        }
+      ]
+    }
+  ]
+}

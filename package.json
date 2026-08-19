@@ -1,0 +1,29 @@
+{
+  "name": "stockpilot",
+  "version": "1.0.0",
+  "description": "StockPilot – Intelligent Inventory Restock Management System with LangGraph Agent & HITL",
+  "main": "server/src/server.js",
+  "type": "module",
+  "scripts": {
+    "install:all": "npm install && cd server && npm install && cd ../client && npm install",
+    "server": "cd server && npm run dev",
+    "client": "cd client && npm run dev",
+    "dev": "concurrently \"npm run server\" \"npm run client\"",
+    "test": "cd server && npm test",
+    "seed": "cd server && npm run seed"
+  },
+  "keywords": [
+    "inventory",
+    "langgraph",
+    "hitl",
+    "express",
+    "react",
+    "mysql",
+    "socket.io"
+  ],
+  "author": "Antigravity Engineer",
+  "license": "ISC",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}
