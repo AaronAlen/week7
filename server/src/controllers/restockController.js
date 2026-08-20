@@ -15,6 +15,7 @@ export const triggerRestock = async (req, res, next) => {
       userId: req.user.id
     });
 
+    req.app.get('io')?.emit('data_updated');
     res.json(result);
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -41,7 +42,16 @@ export const getRestockRequests = async (req, res, next) => {
       order: [['createdAt', 'DESC']]
     });
 
-    res.json(restocks);
+    const uniqueRestocks = [];
+    const seenIds = new Set();
+    for (const r of restocks) {
+      if (!seenIds.has(r.id)) {
+        seenIds.add(r.id);
+        uniqueRestocks.push(r);
+      }
+    }
+
+    res.json(uniqueRestocks);
   } catch (error) {
     next(error);
   }
@@ -84,6 +94,8 @@ export const retryRestock = async (req, res, next) => {
       userId: req.user.id
     });
 
+    req.app.get('io')?.emit('data_updated');
+
     res.json({
       message: 'Restock workflow re-triggered successfully',
       result
@@ -100,6 +112,8 @@ export const receiveStockAction = async (req, res, next) => {
       restockRequestId,
       userId: req.user.id
     });
+
+    req.app.get('io')?.emit('data_updated');
 
     res.json({
       message: `Successfully received ${result.transaction.quantity} units for product '${result.product.name}'. Stock is now ${result.product.currentStock}.`,

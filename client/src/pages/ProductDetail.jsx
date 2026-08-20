@@ -142,7 +142,7 @@ export const ProductDetail = () => {
                 Supplier: <strong className="text-slate-200">{product.supplierName}</strong> ({product.supplierEmail})
               </div>
 
-              {product.currentStock < product.safetyThreshold && (
+              {product.currentStock < product.targetStock && (
                 <button
                   onClick={handleTriggerRestock}
                   disabled={triggering}

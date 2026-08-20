@@ -22,6 +22,8 @@ export const sellInventory = async (req, res, next) => {
       userId: req.user?.id
     });
 
+    req.app.get('io')?.emit('data_updated');
+
     res.json({
       message: `Sale recorded successfully for ${result.product.name}. ${
         result.isLowStock 
@@ -44,6 +46,7 @@ export const adjustInventory = async (req, res, next) => {
   try {
     const validated = adjustSchema.parse(req.body);
     const result = await adjustStock(validated);
+    req.app.get('io')?.emit('data_updated');
 
     res.json({
       message: `Stock adjusted successfully for ${result.product.name}`,

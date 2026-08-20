@@ -1,5 +1,6 @@
 import { PurchaseOrder, RestockRequest, AgentLog } from '../../models/index.js';
 import { sendPurchaseOrderEmail } from '../../services/emailService.js';
+import { sendPurchaseOrderSMS } from '../../services/smsService.js';
 import { logger } from '../../utils/logger.js';
 
 export const executeRestockNode = async (state) => {
@@ -16,16 +17,23 @@ export const executeRestockNode = async (state) => {
       await restockReq.save();
     }
 
-    await PurchaseOrder.create({
-      restockRequestId: state.restockRequestId,
-      productId: state.productId,
-      quantity: state.calculatedReorderQty,
-      unitCost: state.unitCost,
-      totalCost: state.totalCost,
-      supplierName: state.supplierName,
-      supplierEmail: state.supplierEmail,
-      status: 'REJECTED'
-    });
+    let po = await PurchaseOrder.findOne({ where: { restockRequestId: state.restockRequestId } });
+    if (!po) {
+      po = await PurchaseOrder.create({
+        restockRequestId: state.restockRequestId,
+        productId: state.productId,
+        quantity: state.calculatedReorderQty,
+        unitCost: state.unitCost,
+        totalCost: state.totalCost,
+        supplierName: state.supplierName,
+        supplierEmail: state.supplierEmail,
+        supplierPhone: state.supplierPhone,
+        status: 'REJECTED'
+      });
+    } else {
+      po.status = 'REJECTED';
+      await po.save();
+    }
 
     await AgentLog.create({
       productId: state.productId,
@@ -42,19 +50,26 @@ export const executeRestockNode = async (state) => {
     };
   }
 
-  // Case B: Auto-approved OR Human-approved -> Execute PO & Send Email
-  logger.agent(`[executeRestockNode] Proceeding with PO creation and supplier email dispatch.`);
+  // Case B: Auto-approved OR Human-approved -> Execute PO & Send Email + SMS
+  logger.agent(`[executeRestockNode] Proceeding with PO creation and supplier email/SMS dispatch.`);
 
-  const po = await PurchaseOrder.create({
-    restockRequestId: state.restockRequestId,
-    productId: state.productId,
-    quantity: state.calculatedReorderQty,
-    unitCost: state.unitCost,
-    totalCost: state.totalCost,
-    supplierName: state.supplierName,
-    supplierEmail: state.supplierEmail,
-    status: 'SENT'
-  });
+  let po = await PurchaseOrder.findOne({ where: { restockRequestId: state.restockRequestId } });
+  if (!po) {
+    po = await PurchaseOrder.create({
+      restockRequestId: state.restockRequestId,
+      productId: state.productId,
+      quantity: state.calculatedReorderQty,
+      unitCost: state.unitCost,
+      totalCost: state.totalCost,
+      supplierName: state.supplierName,
+      supplierEmail: state.supplierEmail,
+      supplierPhone: state.supplierPhone,
+      status: 'SENT'
+    });
+  } else {
+    po.status = 'SENT';
+    await po.save();
+  }
 
   if (restockReq) {
     restockReq.status = 'APPROVED';
@@ -79,18 +94,36 @@ export const executeRestockNode = async (state) => {
     logger.error(`[executeRestockNode] Email dispatch error (non-fatal): ${err.message}`);
   }
 
+  // Dispatch SMS
+  let smsDispatched = false;
+  try {
+    const smsRes = await sendPurchaseOrderSMS({
+      supplierPhone: state.supplierPhone,
+      supplierName: state.supplierName,
+      poId: po.id,
+      productName: state.productName,
+      sku: state.sku,
+      quantity: state.calculatedReorderQty,
+      unitCost: state.unitCost,
+      totalCost: state.totalCost
+    });
+    smsDispatched = smsRes.success;
+  } catch (err) {
+    logger.error(`[executeRestockNode] SMS dispatch error (non-fatal): ${err.message}`);
+  }
+
   await AgentLog.create({
     productId: state.productId,
     restockRequestId: state.restockRequestId,
     action: 'EXECUTE_RESTOCK',
     status: 'PO_SENT',
-    message: `Created Purchase Order #${po.id} for ${state.calculatedReorderQty} units of '${state.productName}'. Total: $${Number(state.totalCost).toFixed(2)}. ${emailDispatched ? 'Supplier PO email dispatched.' : 'Email log created.'}`
+    message: `Created Purchase Order #${po.id} for ${state.calculatedReorderQty} units of '${state.productName}'. Total: $${Number(state.totalCost).toFixed(2)}. ${emailDispatched ? 'Email dispatched.' : ''} ${smsDispatched ? 'SMS dispatched.' : ''}`
   });
 
   return {
     ...state,
     purchaseOrderId: po.id,
     status: 'PO_SENT',
-    logs: [`Purchase order #${po.id} generated and sent to supplier ${state.supplierEmail}.`]
+    logs: [`Purchase order #${po.id} generated and sent to supplier ${state.supplierEmail}${state.supplierPhone ? ` (${state.supplierPhone})` : ''}.`]
   };
 };

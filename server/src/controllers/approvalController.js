@@ -16,6 +16,7 @@ export const approveRestock = async (req, res, next) => {
       userId: req.user.id
     });
 
+    req.app.get('io')?.emit('data_updated');
     res.json(result);
   } catch (error) {
     if (error instanceof z.ZodError) {
@@ -45,6 +46,30 @@ export const getApprovals = async (req, res, next) => {
     });
 
     res.json(approvals);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const cancelApproval = async (req, res, next) => {
+  try {
+    const approval = await ApprovalsQueue.findByPk(req.params.id);
+    if (!approval) {
+      return res.status(404).json({ error: 'Approval item not found' });
+    }
+
+    const restockReq = await RestockRequest.findByPk(approval.restockRequestId);
+    if (restockReq) {
+      restockReq.status = 'CANCELLED';
+      await restockReq.save();
+    }
+
+    approval.status = 'REJECTED';
+    approval.approvedBy = req.user.id;
+    await approval.save();
+
+    req.app.get('io')?.emit('data_updated');
+    res.json({ message: 'Approval request cancelled and cleared.' });
   } catch (error) {
     next(error);
   }

@@ -11,7 +11,8 @@ const productSchema = z.object({
   targetStock: z.number().int().min(1, 'Target stock must be at least 1'),
   unitCost: z.number().positive('Unit cost must be greater than 0'),
   supplierName: z.string().min(2, 'Supplier name is required'),
-  supplierEmail: z.string().email('Invalid supplier email')
+  supplierEmail: z.string().email('Invalid supplier email'),
+  supplierPhone: z.string().optional().nullable()
 });
 
 export const getProducts = async (req, res, next) => {

@@ -10,7 +10,7 @@ export const authenticateToken = (req, res, next) => {
 
   const decoded = verifyAccessToken(token);
   if (!decoded) {
-    return res.status(403).json({ error: 'Forbidden: Invalid or expired access token' });
+    return res.status(401).json({ error: 'Unauthorized: Invalid or expired access token' });
   }
 
   req.user = decoded;

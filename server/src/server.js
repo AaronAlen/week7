@@ -3,6 +3,7 @@ import { Server } from 'socket.io';
 import app from './app.js';
 import { env } from './config/env.js';
 import { sequelize, ChatMessage, User } from './models/index.js';
+import { seedDatabase } from './db/seed.js';
 import { logger } from './utils/logger.js';
 
 const server = http.createServer(app);
@@ -52,6 +53,12 @@ const startServer = async () => {
     // Sync database models
     await sequelize.sync({ alter: true });
     logger.info('✅ Database schema synchronized.');
+
+    const userCount = await User.count();
+    if (userCount === 0) {
+      logger.info('🌱 Database is empty. Running initial database seed...');
+      await seedDatabase();
+    }
 
     server.listen(env.PORT, () => {
       logger.info(`🚀 StockPilot Server running on http://localhost:${env.PORT}`);

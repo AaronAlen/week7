@@ -35,6 +35,10 @@ const PurchaseOrder = sequelize.define('PurchaseOrder', {
     type: DataTypes.STRING(150),
     allowNull: false
   },
+  supplierPhone: {
+    type: DataTypes.STRING(30),
+    allowNull: true
+  },
   status: {
     type: DataTypes.ENUM('PENDING_APPROVAL', 'APPROVED', 'REJECTED', 'SENT', 'RECEIVED', 'CANCELLED'),
     allowNull: false,

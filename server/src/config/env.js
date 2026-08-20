@@ -29,6 +29,10 @@ const envSchema = z.object({
   EMAIL_USER: z.string().optional(),
   EMAIL_PASSWORD: z.string().optional(),
   EMAIL_FROM: z.string().default('"StockPilot Restock System" <restock@stockpilot.io>'),
+  TWILIO_ACCOUNT_SID: z.string().optional(),
+  TWILIO_AUTH_TOKEN: z.string().optional(),
+  TWILIO_PHONE_NUMBER: z.string().optional(),
+  SMS_ENABLED: z.coerce.boolean().default(true),
   CLIENT_URL: z.string().default('http://localhost:5173')
 });
 

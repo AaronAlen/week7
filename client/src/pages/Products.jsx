@@ -15,6 +15,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useSocket } from '../context/SocketContext.jsx';
 
 export const Products = () => {
   const [products, setProducts] = useState([]);
@@ -25,6 +26,7 @@ export const Products = () => {
   const [triggeringId, setTriggeringId] = useState(null);
   const [message, setMessage] = useState('');
   const { hasRole } = useAuth();
+  const socket = useSocket();
 
   const fetchProducts = async () => {
     try {
@@ -39,7 +41,11 @@ export const Products = () => {
 
   useEffect(() => {
     fetchProducts();
-  }, []);
+    if (socket) {
+      socket.on('data_updated', fetchProducts);
+      return () => socket.off('data_updated', fetchProducts);
+    }
+  }, [socket]);
 
   const handleImageUpload = async (productId) => {
     if (!selectedFile) return;
@@ -187,7 +193,7 @@ export const Products = () => {
 
             {/* Action Buttons */}
             <div className="pt-3 border-t border-slate-800 space-y-2">
-              {p.currentStock < p.safetyThreshold && (
+              {p.currentStock < p.targetStock && (
                 <button
                   onClick={() => handleTriggerRestock(p.id)}
                   disabled={triggeringId === p.id}

@@ -111,13 +111,19 @@ export const receiveStock = async ({ restockRequestId, userId }) => {
       throw new Error(`Restock request #${restockRequestId} not found.`);
     }
 
-    const po = restockReq.purchaseOrder;
+    let po = restockReq.purchaseOrder;
     if (!po) {
-      throw new Error(`No purchase order found for restock request #${restockRequestId}.`);
-    }
-
-    if (po.status !== 'SENT' && po.status !== 'APPROVED') {
-      throw new Error(`Cannot receive stock. Purchase order status is '${po.status}', expected 'SENT' or 'APPROVED'.`);
+      po = await PurchaseOrder.create({
+        restockRequestId: restockReq.id,
+        productId: restockReq.productId,
+        quantity: restockReq.quantity,
+        unitCost: Number(restockReq.product?.unitCost || 0),
+        totalCost: Number(restockReq.totalCost),
+        supplierName: restockReq.product?.supplierName || 'Supplier',
+        supplierEmail: restockReq.product?.supplierEmail || 'supplier@email.com',
+        supplierPhone: restockReq.product?.supplierPhone,
+        status: 'SENT'
+      }, { transaction });
     }
 
     const product = restockReq.product;

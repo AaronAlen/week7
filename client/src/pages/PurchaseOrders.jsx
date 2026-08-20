@@ -2,10 +2,12 @@ import React, { useState, useEffect } from 'react';
 import api from '../services/api.js';
 import { POStatusBadge } from '../components/StatusBadge.jsx';
 import { FileText, RefreshCw, Mail } from 'lucide-react';
+import { useSocket } from '../context/SocketContext.jsx';
 
 export const PurchaseOrders = () => {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const socket = useSocket();
 
   const fetchOrders = async () => {
     try {
@@ -20,7 +22,11 @@ export const PurchaseOrders = () => {
 
   useEffect(() => {
     fetchOrders();
-  }, []);
+    if (socket) {
+      socket.on('data_updated', fetchOrders);
+      return () => socket.off('data_updated', fetchOrders);
+    }
+  }, [socket]);
 
   if (loading) {
     return (

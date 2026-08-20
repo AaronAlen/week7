@@ -5,7 +5,6 @@ import { SocketProvider } from './context/SocketContext.jsx';
 import { DashboardLayout } from './layouts/DashboardLayout.jsx';
 
 import { Login } from './pages/Login.jsx';
-import { Register } from './pages/Register.jsx';
 import { Dashboard } from './pages/Dashboard.jsx';
 import { Products } from './pages/Products.jsx';
 import { ProductDetail } from './pages/ProductDetail.jsx';
@@ -50,7 +49,6 @@ export function App() {
           <Routes>
             {/* Public Auth Routes */}
             <Route path="/login" element={<Login />} />
-            <Route path="/register" element={<Register />} />
 
             {/* Protected Application Routes */}
             <Route

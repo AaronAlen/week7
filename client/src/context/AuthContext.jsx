@@ -11,20 +11,35 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const token = sessionStorage.getItem('accessToken');
-    if (token) {
-      api.get('/users/profile')
-        .then(res => {
+    const initAuth = async () => {
+      let token = sessionStorage.getItem('accessToken');
+      if (!token) {
+        try {
+          const refreshRes = await api.post('/auth/refresh');
+          token = refreshRes.data.accessToken;
+          sessionStorage.setItem('accessToken', token);
+        } catch (err) {
+          // No valid cookie found
+        }
+      }
+
+      if (token) {
+        try {
+          const res = await api.get('/users/profile');
           setUser(res.data);
           sessionStorage.setItem('user', JSON.stringify(res.data));
-        })
-        .catch(() => {
+        } catch (err) {
           logout();
-        })
-        .finally(() => setLoading(false));
-    } else {
+        }
+      } else {
+        sessionStorage.removeItem('accessToken');
+        sessionStorage.removeItem('user');
+        setUser(null);
+      }
       setLoading(false);
-    }
+    };
+
+    initAuth();
   }, []);
 
   const login = async (email, password) => {

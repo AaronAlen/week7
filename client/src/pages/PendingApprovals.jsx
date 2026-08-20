@@ -9,6 +9,7 @@ import {
   Sparkles,
   AlertCircle
 } from 'lucide-react';
+import { useSocket } from '../context/SocketContext.jsx';
 
 export const PendingApprovals = () => {
   const [approvals, setApprovals] = useState([]);
@@ -16,6 +17,7 @@ export const PendingApprovals = () => {
   const [processingThread, setProcessingThread] = useState(null);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const socket = useSocket();
 
   const fetchApprovals = async () => {
     try {
@@ -30,12 +32,19 @@ export const PendingApprovals = () => {
 
   useEffect(() => {
     fetchApprovals();
-  }, []);
+    if (socket) {
+      socket.on('data_updated', fetchApprovals);
+      return () => socket.off('data_updated', fetchApprovals);
+    }
+  }, [socket]);
 
   const handleDecision = async (threadId, approved) => {
     setProcessingThread(threadId);
     setMessage('');
     setError('');
+
+    // Optimistically update UI so user immediately sees approval item disappear
+    setApprovals(prev => prev.filter(item => item.threadId !== threadId));
 
     try {
       const res = await api.post('/approve-restock', { threadId, approved });
@@ -43,8 +52,24 @@ export const PendingApprovals = () => {
       fetchApprovals();
     } catch (err) {
       setError(err.response?.data?.error || 'Failed to submit approval decision');
+      fetchApprovals();
     } finally {
       setProcessingThread(null);
+    }
+  };
+
+  const handleCancelApproval = async (approvalId) => {
+    setMessage('');
+    setError('');
+    setApprovals(prev => prev.filter(item => item.id !== approvalId));
+
+    try {
+      const res = await api.delete(`/approvals/${approvalId}`);
+      setMessage(res.data.message);
+      fetchApprovals();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to cancel approval request');
+      fetchApprovals();
     }
   };
 
@@ -170,6 +195,14 @@ export const PendingApprovals = () => {
                   </div>
 
                   <div className="flex space-x-3">
+                    <button
+                      onClick={() => handleCancelApproval(item.id)}
+                      className="bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 border border-slate-700 text-xs px-3 py-2.5 rounded-xl transition"
+                      title="Clear from approval queue"
+                    >
+                      Clear
+                    </button>
+
                     <button
                       onClick={() => handleDecision(item.threadId, false)}
                       disabled={processingThread === item.threadId}

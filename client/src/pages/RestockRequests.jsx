@@ -9,6 +9,7 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.jsx';
+import { useSocket } from '../context/SocketContext.jsx';
 
 export const RestockRequests = () => {
   const [restocks, setRestocks] = useState([]);
@@ -17,6 +18,7 @@ export const RestockRequests = () => {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const { hasRole } = useAuth();
+  const socket = useSocket();
 
   const fetchRestocks = async () => {
     try {
@@ -31,7 +33,11 @@ export const RestockRequests = () => {
 
   useEffect(() => {
     fetchRestocks();
-  }, []);
+    if (socket) {
+      socket.on('data_updated', fetchRestocks);
+      return () => socket.off('data_updated', fetchRestocks);
+    }
+  }, [socket]);
 
   const handleReceiveStock = async (restockRequestId) => {
     setActionId(restockRequestId);
@@ -127,7 +133,7 @@ export const RestockRequests = () => {
             <tbody className="divide-y divide-slate-800">
               {restocks.map((r) => {
                 const po = r.purchaseOrder;
-                const canReceive = po && po.status === 'SENT' && hasRole('ADMIN', 'MANAGER');
+                const canReceive = (r.status === 'APPROVED' || (po && po.status === 'SENT')) && r.status !== 'COMPLETED' && hasRole('ADMIN', 'MANAGER');
                 const canRetry = (r.status === 'REJECTED' || r.status === 'CANCELLED') && hasRole('ADMIN', 'MANAGER');
 
                 return (
@@ -154,7 +160,7 @@ export const RestockRequests = () => {
                       <RestockStatusBadge status={r.status} />
                     </td>
                     <td className="px-4 py-3 text-slate-400 text-[11px]">
-                      {po ? `PO #${po.id} [${po.status}]` : 'No PO generated'}
+                      {po ? `PO #${po.id} [${po.status}]` : r.status === 'APPROVED' ? `PO [SENT]` : 'No PO generated'}
                     </td>
                     <td className="px-4 py-3 text-right">
                       {canReceive && (

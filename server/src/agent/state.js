@@ -10,6 +10,7 @@ export const RestockStateAnnotation = Annotation.Root({
   unitCost: Annotation({ reducer: (x, y) => y ?? x }),
   supplierName: Annotation({ reducer: (x, y) => y ?? x }),
   supplierEmail: Annotation({ reducer: (x, y) => y ?? x }),
+  supplierPhone: Annotation({ reducer: (x, y) => y ?? x }),
   calculatedReorderQty: Annotation({ reducer: (x, y) => y ?? x }),
   totalCost: Annotation({ reducer: (x, y) => y ?? x }),
   requiresHumanReview: Annotation({ reducer: (x, y) => y ?? x }),

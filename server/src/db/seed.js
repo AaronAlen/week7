@@ -1,5 +1,6 @@
 import bcrypt from 'bcryptjs';
 import { sequelize, User, Product, InventoryTransaction } from '../models/index.js';
+import { triggerRestockWorkflow } from '../services/agentService.js';
 import { logger } from '../utils/logger.js';
 
 export const seedDatabase = async () => {
@@ -47,6 +48,7 @@ export const seedDatabase = async () => {
         unitCost: 25.00,
         supplierName: 'TechLogistics Inc',
         supplierEmail: 'supplier@techlogistics.com',
+        supplierPhone: '+15550192831',
         image: null
       },
       {
@@ -59,6 +61,7 @@ export const seedDatabase = async () => {
         unitCost: 450.00,
         supplierName: 'DisplayDirect Corp',
         supplierEmail: 'orders@displaydirect.com',
+        supplierPhone: '+15550192832',
         image: null
       },
       {
@@ -71,18 +74,20 @@ export const seedDatabase = async () => {
         unitCost: 18.50,
         supplierName: 'Connectivity Solutions',
         supplierEmail: 'sales@connectsol.com',
+        supplierPhone: '+15550192833',
         image: null
       },
       {
         name: 'Mechanical RGB Gaming Keyboard',
         description: 'Custom hot-swappable tactile switches with per-key RGB illumination.',
         sku: 'SKU-KEYBOARD-004',
-        currentStock: 45, // Normal healthy stock
+        currentStock: 80, // Full target capacity stock
         safetyThreshold: 20,
         targetStock: 80,
         unitCost: 85.00,
         supplierName: 'Peripheral Hub',
         supplierEmail: 'orders@peripheralhub.com',
+        supplierPhone: '+15550192834',
         image: null
       },
       {
@@ -95,6 +100,7 @@ export const seedDatabase = async () => {
         unitCost: 199.00,
         supplierName: 'AudioTech Ltd',
         supplierEmail: 'fulfillment@audiotech.com',
+        supplierPhone: '+15550192835',
         image: null
       }
     ]);
@@ -111,6 +117,18 @@ export const seedDatabase = async () => {
         newStock: p.currentStock,
         referenceId: 'INITIAL_SEED'
       });
+    }
+
+    // 4. Automatically trigger restock workflows for low stock products
+    for (const p of products) {
+      if (p.currentStock < p.safetyThreshold) {
+        logger.info(`🤖 Auto-triggering initial restock workflow for low stock product '${p.name}' (${p.currentStock}/${p.safetyThreshold})`);
+        try {
+          await triggerRestockWorkflow({ productId: p.id, userId: admin.id });
+        } catch (err) {
+          logger.warn(`Failed to auto-trigger restock workflow for product #${p.id}: ${err.message}`);
+        }
+      }
     }
 
     logger.info('🌱 Database seeding completed successfully.');

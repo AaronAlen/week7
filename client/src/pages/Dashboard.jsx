@@ -14,6 +14,7 @@ import {
   Zap
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useSocket } from '../context/SocketContext.jsx';
 
 export const Dashboard = () => {
   const [products, setProducts] = useState([]);
@@ -24,6 +25,7 @@ export const Dashboard = () => {
   const [loading, setLoading] = useState(true);
   const [triggeringId, setTriggeringId] = useState(null);
   const [message, setMessage] = useState('');
+  const socket = useSocket();
 
   const fetchData = async () => {
     try {
@@ -48,7 +50,11 @@ export const Dashboard = () => {
 
   useEffect(() => {
     fetchData();
-  }, []);
+    if (socket) {
+      socket.on('data_updated', fetchData);
+      return () => socket.off('data_updated', fetchData);
+    }
+  }, [socket]);
 
   const handleTriggerRestock = async (productId) => {
     setTriggeringId(productId);

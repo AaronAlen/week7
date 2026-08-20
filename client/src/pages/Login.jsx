@@ -4,8 +4,8 @@ import { useAuth } from '../context/AuthContext.jsx';
 import { Cpu, Lock, Mail, AlertCircle } from 'lucide-react';
 
 export const Login = () => {
-  const [email, setEmail] = useState('admin@stockpilot.io');
-  const [password, setPassword] = useState('password123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const { login } = useAuth();
@@ -83,16 +83,8 @@ export const Login = () => {
           </button>
         </form>
 
-        <div className="pt-4 border-t border-slate-800 text-center text-xs text-slate-400 space-y-2">
-          <p>Demo Accounts (Password: <code className="text-blue-400">password123</code>):</p>
-          <div className="flex justify-center space-x-3 text-slate-300 font-mono text-[11px]">
-            <button type="button" onClick={() => { setEmail('admin@stockpilot.io'); setPassword('password123'); }} className="hover:text-blue-400 underline">admin@stockpilot.io</button>
-            <span>•</span>
-            <button type="button" onClick={() => { setEmail('manager@stockpilot.io'); setPassword('password123'); }} className="hover:text-blue-400 underline">manager@stockpilot.io</button>
-            <span>•</span>
-            <button type="button" onClick={() => { setEmail('staff@stockpilot.io'); setPassword('password123'); }} className="hover:text-blue-400 underline">staff@stockpilot.io</button>
-          </div>
-          <p className="pt-2">Don't have an account? <Link to="/register" className="text-blue-400 hover:underline">Register here</Link></p>
+        <div className="pt-4 border-t border-slate-800 text-center text-xs text-slate-400">
+          <p className="text-[11px] text-slate-500">Authorized personnel only. Contact your system Administrator for access.</p>
         </div>
       </div>
     </div>

@@ -9,20 +9,20 @@ export const evaluateStockNode = async (state) => {
     throw new Error(`Product #${state.productId} not found.`);
   }
 
-  if (product.currentStock >= product.safetyThreshold) {
-    logger.agent(`[evaluateStockNode] Product #${product.id} stock (${product.currentStock}) >= safety (${product.safetyThreshold}). No restock required.`);
+  if (product.currentStock >= product.targetStock) {
+    logger.agent(`[evaluateStockNode] Product #${product.id} stock (${product.currentStock}) >= target capacity (${product.targetStock}). No restock required.`);
     
     await AgentLog.create({
       productId: product.id,
       action: 'EVALUATE_STOCK',
       status: 'NO_ACTION_NEEDED',
-      message: `Evaluated stock for '${product.name}'. Current stock (${product.currentStock}) is healthy and at/above safety threshold (${product.safetyThreshold}). No restock order required.`
+      message: `Evaluated stock for '${product.name}'. Current stock (${product.currentStock}) is at full target capacity (${product.targetStock}). No restock order required.`
     });
 
     return {
       ...state,
       status: 'NO_ACTION_NEEDED',
-      logs: [`Stock level (${product.currentStock}) is healthy. No restock needed.`]
+      logs: [`Stock level (${product.currentStock}) is at full target capacity (${product.targetStock}). No restock needed.`]
     };
   }
 
@@ -71,6 +71,7 @@ export const evaluateStockNode = async (state) => {
     unitCost,
     supplierName: product.supplierName,
     supplierEmail: product.supplierEmail,
+    supplierPhone: product.supplierPhone,
     calculatedReorderQty,
     totalCost,
     requiresHumanReview,

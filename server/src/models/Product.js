@@ -51,6 +51,10 @@ const Product = sequelize.define('Product', {
       isEmail: true
     }
   },
+  supplierPhone: {
+    type: DataTypes.STRING(30),
+    allowNull: true
+  },
   image: {
     type: DataTypes.STRING(255),
     allowNull: true
