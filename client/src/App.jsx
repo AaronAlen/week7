@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext.jsx';
 import { SocketProvider } from './context/SocketContext.jsx';
+import { ThemeProvider } from './context/ThemeContext.jsx';
 import { DashboardLayout } from './layouts/DashboardLayout.jsx';
 
 import { Login } from './pages/Login.jsx';
@@ -43,43 +44,45 @@ const ProtectedRoute = ({ children, roles }) => {
 
 export function App() {
   return (
-    <AuthProvider>
-      <SocketProvider>
-        <Router>
-          <Routes>
-            {/* Public Auth Routes */}
-            <Route path="/login" element={<Login />} />
+    <ThemeProvider>
+      <AuthProvider>
+        <SocketProvider>
+          <Router>
+            <Routes>
+              {/* Public Auth Routes */}
+              <Route path="/login" element={<Login />} />
 
-            {/* Protected Application Routes */}
-            <Route
-              path="/"
-              element={
-                <ProtectedRoute>
-                  <DashboardLayout />
-                </ProtectedRoute>
-              }
-            >
-              <Route index element={<Navigate to="/dashboard" replace />} />
-              <Route path="dashboard" element={<Dashboard />} />
-              <Route path="products" element={<Products />} />
-              <Route path="products/new" element={<ProtectedRoute roles={['ADMIN', 'MANAGER']}><AddProduct /></ProtectedRoute>} />
-              <Route path="products/:id" element={<ProductDetail />} />
-              <Route path="products/:id/edit" element={<ProtectedRoute roles={['ADMIN', 'MANAGER']}><EditProduct /></ProtectedRoute>} />
-              <Route path="inventory" element={<Inventory />} />
-              <Route path="restocks" element={<RestockRequests />} />
-              <Route path="pending-approvals" element={<ProtectedRoute roles={['ADMIN', 'MANAGER']}><PendingApprovals /></ProtectedRoute>} />
-              <Route path="purchase-orders" element={<PurchaseOrders />} />
-              <Route path="agent-logs" element={<AgentLogs />} />
-              <Route path="chat" element={<Chat />} />
-              <Route path="users" element={<ProtectedRoute roles={['ADMIN']}><Users /></ProtectedRoute>} />
-              <Route path="profile" element={<Profile />} />
-            </Route>
+              {/* Protected Application Routes */}
+              <Route
+                path="/"
+                element={
+                  <ProtectedRoute>
+                    <DashboardLayout />
+                  </ProtectedRoute>
+                }
+              >
+                <Route index element={<Navigate to="/dashboard" replace />} />
+                <Route path="dashboard" element={<Dashboard />} />
+                <Route path="products" element={<Products />} />
+                <Route path="products/new" element={<ProtectedRoute roles={['ADMIN', 'MANAGER']}><AddProduct /></ProtectedRoute>} />
+                <Route path="products/:id" element={<ProductDetail />} />
+                <Route path="products/:id/edit" element={<ProtectedRoute roles={['ADMIN', 'MANAGER']}><EditProduct /></ProtectedRoute>} />
+                <Route path="inventory" element={<Inventory />} />
+                <Route path="restocks" element={<RestockRequests />} />
+                <Route path="pending-approvals" element={<ProtectedRoute roles={['ADMIN', 'MANAGER']}><PendingApprovals /></ProtectedRoute>} />
+                <Route path="purchase-orders" element={<PurchaseOrders />} />
+                <Route path="agent-logs" element={<AgentLogs />} />
+                <Route path="chat" element={<Chat />} />
+                <Route path="users" element={<ProtectedRoute roles={['ADMIN']}><Users /></ProtectedRoute>} />
+                <Route path="profile" element={<Profile />} />
+              </Route>
 
-            <Route path="*" element={<Navigate to="/dashboard" replace />} />
-          </Routes>
-        </Router>
-      </SocketProvider>
-    </AuthProvider>
+              <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            </Routes>
+          </Router>
+        </SocketProvider>
+      </AuthProvider>
+    </ThemeProvider>
   );
 }
 

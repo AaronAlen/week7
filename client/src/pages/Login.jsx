@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext.jsx';
-import { Cpu, Lock, Mail, AlertCircle } from 'lucide-react';
+import { useTheme } from '../context/ThemeContext.jsx';
+import { Cpu, Lock, Mail, AlertCircle, Sun, Moon } from 'lucide-react';
 
 export const Login = () => {
   const [email, setEmail] = useState('');
@@ -9,6 +10,7 @@ export const Login = () => {
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const { login } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
@@ -26,7 +28,25 @@ export const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
+    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-center p-4 relative">
+      <button
+        onClick={toggleTheme}
+        className="absolute top-6 right-6 p-2.5 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 border border-slate-700 transition flex items-center space-x-2 text-xs font-medium theme-toggle-btn"
+        title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
+      >
+        {theme === 'dark' ? (
+          <>
+            <Sun className="w-4 h-4 text-amber-400" />
+            <span className="text-amber-300">Light Mode</span>
+          </>
+        ) : (
+          <>
+            <Moon className="w-4 h-4 text-indigo-400" />
+            <span className="text-indigo-400">Dark Mode</span>
+          </>
+        )}
+      </button>
+
       <div className="max-w-md w-full bg-slate-900 border border-slate-800 rounded-2xl p-8 shadow-2xl space-y-6">
         <div className="text-center space-y-2">
           <div className="inline-flex items-center justify-center w-12 h-12 rounded-xl bg-blue-600/10 border border-blue-500/20 text-blue-500 mb-2">

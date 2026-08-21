@@ -101,7 +101,7 @@ export const Chat = () => {
         </div>
       </div>
 
-      <div className="bg-slate-900 border border-slate-800 rounded-2xl h-[550px] flex flex-col shadow-xl overflow-hidden">
+      <div className="bg-slate-900 border border-slate-800 rounded-2xl h-[calc(100vh-240px)] max-h-[480px] min-h-[340px] flex flex-col shadow-xl overflow-hidden">
         {/* Chat History Messages Container */}
         <div className="flex-1 p-6 overflow-y-auto space-y-4">
           {messages.map((msg) => {
