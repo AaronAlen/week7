@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useSocket } from '../context/SocketContext.jsx';
+import { getImageUrl } from '../utils/imageUrl.js';
 
 export const Products = () => {
   const [products, setProducts] = useState([]);
@@ -153,7 +154,7 @@ export const Products = () => {
               <div className="flex items-start justify-between">
                 <div className="w-16 h-16 rounded-xl bg-slate-800 border border-slate-700 overflow-hidden flex items-center justify-center flex-shrink-0">
                   {p.image ? (
-                    <img src={p.image} alt={p.name} className="w-full h-full object-cover" />
+                    <img src={getImageUrl(p.image)} alt={p.name} className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; }} />
                   ) : (
                     <ImageIcon className="w-6 h-6 text-slate-600" />
                   )}

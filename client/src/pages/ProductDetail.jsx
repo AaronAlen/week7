@@ -14,6 +14,7 @@ import {
   Image as ImageIcon
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.jsx';
+import { getImageUrl } from '../utils/imageUrl.js';
 
 export const ProductDetail = () => {
   const { id } = useParams();
@@ -101,7 +102,7 @@ export const ProductDetail = () => {
         <div className="flex flex-col md:flex-row gap-6">
           <div className="w-full md:w-48 h-48 rounded-2xl bg-slate-800 border border-slate-700 overflow-hidden flex items-center justify-center flex-shrink-0">
             {product.image ? (
-              <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
+              <img src={getImageUrl(product.image)} alt={product.name} className="w-full h-full object-cover" onError={(e) => { e.target.style.display = 'none'; }} />
             ) : (
               <ImageIcon className="w-12 h-12 text-slate-600" />
             )}

@@ -33,7 +33,11 @@ const envSchema = z.object({
   TWILIO_AUTH_TOKEN: z.string().optional(),
   TWILIO_PHONE_NUMBER: z.string().optional(),
   SMS_ENABLED: z.coerce.boolean().default(true),
-  CLIENT_URL: z.string().default('http://localhost:5173')
+  CLIENT_URL: z.string().default('http://localhost:5173'),
+  CLOUDINARY_CLOUD_NAME: z.string().optional(),
+  CLOUDINARY_API_KEY: z.string().optional(),
+  CLOUDINARY_API_SECRET: z.string().optional(),
+  GEMINI_API_KEY: z.string().optional()
 });
 
 const parsed = envSchema.safeParse(process.env);

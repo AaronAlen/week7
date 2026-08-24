@@ -1,6 +1,16 @@
 import { Product, InventoryTransaction, RestockRequest, PurchaseOrder } from '../models/index.js';
 import { z } from 'zod';
 import path from 'path';
+import { v2 as cloudinary } from 'cloudinary';
+import { env } from '../config/env.js';
+
+if (env.CLOUDINARY_CLOUD_NAME && env.CLOUDINARY_API_KEY && env.CLOUDINARY_API_SECRET) {
+  cloudinary.config({
+    cloud_name: env.CLOUDINARY_CLOUD_NAME,
+    api_key: env.CLOUDINARY_API_KEY,
+    api_secret: env.CLOUDINARY_API_SECRET
+  });
+}
 
 const productSchema = z.object({
   name: z.string().min(2, 'Name is required'),
@@ -134,13 +144,30 @@ export const uploadImage = async (req, res, next) => {
       return res.status(400).json({ error: 'No image file uploaded.' });
     }
 
-    const imagePath = `/uploads/${path.basename(req.file.path)}`;
-    product.image = imagePath;
+    let finalImageUrl;
+
+    // Upload to Cloudinary if credentials are configured
+    if (env.CLOUDINARY_CLOUD_NAME && env.CLOUDINARY_API_KEY && env.CLOUDINARY_API_SECRET) {
+      try {
+        const result = await cloudinary.uploader.upload(req.file.path, {
+          folder: 'stockpilot_products',
+          resource_type: 'image'
+        });
+        finalImageUrl = result.secure_url;
+      } catch (cloudErr) {
+        console.warn(`[Cloudinary Upload Warning]: ${cloudErr.message}. Falling back to local storage.`);
+        finalImageUrl = `/uploads/${path.basename(req.file.path)}`;
+      }
+    } else {
+      finalImageUrl = `/uploads/${path.basename(req.file.path)}`;
+    }
+
+    product.image = finalImageUrl;
     await product.save();
 
     res.json({
       message: 'Product image uploaded successfully',
-      image: imagePath,
+      image: finalImageUrl,
       product
     });
   } catch (error) {
