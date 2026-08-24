@@ -16,11 +16,14 @@ const loginSchema = z.object({
   password: z.string().min(1, 'Password is required')
 });
 
+const isHttpsOrProduction = env.NODE_ENV === 'production' || process.env.NODE_ENV === 'production' || (env.CLIENT_URL && env.CLIENT_URL.startsWith('https://'));
+
 const COOKIE_OPTIONS = {
   httpOnly: true,
-  secure: env.NODE_ENV === 'production',
-  sameSite: 'lax',
-  maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
+  secure: isHttpsOrProduction,
+  sameSite: isHttpsOrProduction ? 'none' : 'lax',
+  maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+  path: '/'
 };
 
 export const register = async (req, res, next) => {
@@ -95,8 +98,7 @@ export const login = async (req, res, next) => {
 };
 
 export const refresh = async (req, res) => {
-  // Check HttpOnly Cookie first, fallback to request body
-  const refreshToken = req.cookies?.refreshToken || req.body?.refreshToken;
+  const refreshToken = req.cookies?.refreshToken;
 
   if (!refreshToken) {
     return res.status(400).json({ error: 'Refresh token is required.' });

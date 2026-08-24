@@ -22,6 +22,9 @@ const __dirname = path.dirname(__filename);
 
 const app = express();
 
+// Trust Render / Cloud reverse proxy for secure HTTPS cookies
+app.set('trust proxy', 1);
+
 // Enable CORS with Credentials for HttpOnly Cookie support
 app.use(cors({
   origin: (origin, callback) => {
