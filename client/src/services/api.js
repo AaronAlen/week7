@@ -1,7 +1,9 @@
 import axios from 'axios';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || '/api';
+
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: API_BASE_URL,
   withCredentials: true, // Enables sending and receiving HttpOnly cookies across origins
   headers: {
     'Content-Type': 'application/json'
@@ -29,7 +31,10 @@ api.interceptors.response.use(
     if (error.response && error.response.status === 401 && !originalRequest._retry && !isAuthEndpoint) {
       originalRequest._retry = true;
       try {
-        const res = await axios.post('/api/auth/refresh', {}, { withCredentials: true });
+        const refreshEndpoint = API_BASE_URL.endsWith('/')
+          ? `${API_BASE_URL}auth/refresh`
+          : `${API_BASE_URL}/auth/refresh`;
+        const res = await axios.post(refreshEndpoint, {}, { withCredentials: true });
         const { accessToken } = res.data;
         sessionStorage.setItem('accessToken', accessToken);
 
