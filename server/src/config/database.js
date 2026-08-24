@@ -20,13 +20,17 @@ if (env.DB_DIALECT === 'sqlite') {
     }
   });
 } else {
-  // Auto-create MySQL database if it does not exist
+  const isCloudDb = env.DB_HOST !== 'localhost' && env.DB_HOST !== '127.0.0.1';
+  const sslOptions = isCloudDb ? { minVersion: 'TLSv1.2', rejectUnauthorized: true } : undefined;
+
+  // Auto-create MySQL database if it does not exist (for local or permission-enabled instances)
   try {
     const connection = await mysql.createConnection({
       host: env.DB_HOST,
       port: env.DB_PORT,
       user: env.DB_USER,
-      password: env.DB_PASSWORD
+      password: env.DB_PASSWORD,
+      ssl: sslOptions
     });
     await connection.query(`CREATE DATABASE IF NOT EXISTS \`${env.DB_NAME}\`;`);
     await connection.end();
@@ -38,7 +42,8 @@ if (env.DB_DIALECT === 'sqlite') {
     host: env.DB_HOST,
     port: env.DB_PORT,
     dialect: 'mysql',
-    logging: env.NODE_ENV === 'development' ? false : false,
+    dialectOptions: isCloudDb ? { ssl: sslOptions } : {},
+    logging: false,
     define: {
       timestamps: true
     },
