@@ -32,7 +32,6 @@ const User = sequelize.define('User', {
   tableName: 'Users',
   timestamps: true,
   indexes: [
-    { unique: true, fields: ['email'] },
     { fields: ['role'] }
   ]
 });

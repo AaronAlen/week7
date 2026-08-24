@@ -50,8 +50,8 @@ const startServer = async () => {
     await sequelize.authenticate();
     logger.info(`✅ Database connection established successfully (${env.DB_DIALECT.toUpperCase()}).`);
 
-    // Sync database models
-    await sequelize.sync({ alter: true });
+    // Sync database models safely
+    await sequelize.sync();
     logger.info('✅ Database schema synchronized.');
 
     const userCount = await User.count();

@@ -63,7 +63,6 @@ const Product = sequelize.define('Product', {
   tableName: 'Products',
   timestamps: true,
   indexes: [
-    { unique: true, fields: ['sku'] },
     { fields: ['currentStock'] }
   ]
 });
