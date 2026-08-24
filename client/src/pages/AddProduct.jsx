@@ -14,7 +14,8 @@ export const AddProduct = () => {
     targetStock: 50,
     unitCost: 15.00,
     supplierName: '',
-    supplierEmail: ''
+    supplierEmail: '',
+    supplierPhone: ''
   });
   const [error, setError] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -159,7 +160,7 @@ export const AddProduct = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-1">Supplier Name</label>
               <input
@@ -182,6 +183,18 @@ export const AddProduct = () => {
                 value={formData.supplierEmail}
                 onChange={handleChange}
                 placeholder="orders@globalsupplies.com"
+                className="w-full bg-slate-800 border border-slate-700 focus:border-blue-500 rounded-xl px-3.5 py-2 text-slate-100 placeholder-slate-500 outline-none"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-semibold text-slate-300 mb-1">Supplier Phone (SMS)</label>
+              <input
+                type="text"
+                name="supplierPhone"
+                value={formData.supplierPhone}
+                onChange={handleChange}
+                placeholder="+1 (555) 019-2800"
                 className="w-full bg-slate-800 border border-slate-700 focus:border-blue-500 rounded-xl px-3.5 py-2 text-slate-100 placeholder-slate-500 outline-none"
               />
             </div>

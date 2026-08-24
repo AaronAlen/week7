@@ -189,6 +189,9 @@ export const Products = () => {
 
               <div className="text-xs text-slate-400 pt-1">
                 Supplier: <strong className="text-slate-300">{p.supplierName}</strong> ({p.supplierEmail})
+                {p.supplierPhone && (
+                  <span className="block text-[11px] text-slate-500 font-mono mt-0.5">📞 {p.supplierPhone}</span>
+                )}
               </div>
             </div>
 

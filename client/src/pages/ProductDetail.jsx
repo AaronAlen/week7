@@ -141,6 +141,9 @@ export const ProductDetail = () => {
             <div className="flex flex-wrap items-center justify-between gap-4 pt-2">
               <div className="text-xs text-slate-400">
                 Supplier: <strong className="text-slate-200">{product.supplierName}</strong> ({product.supplierEmail})
+                {product.supplierPhone && (
+                  <span className="ml-2 font-mono text-slate-400">• 📞 {product.supplierPhone}</span>
+                )}
               </div>
 
               {product.currentStock < product.targetStock && (
