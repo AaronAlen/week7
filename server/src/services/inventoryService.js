@@ -1,5 +1,5 @@
 import { sequelize, Product, InventoryTransaction, PurchaseOrder, RestockRequest, AgentLog } from '../models/index.js';
-import { triggerRestockWorkflow } from './agentService.js';
+import { runRestockProcurementAgent } from './groqAgentService.js';
 import { logger } from '../utils/logger.js';
 
 export const recordSale = async ({ productId, quantity, referenceId = 'SALE-DIRECT', userId }) => {
@@ -43,14 +43,14 @@ export const recordSale = async ({ productId, quantity, referenceId = 'SALE-DIRE
     throw error;
   }
 
-  // Auto-trigger LangGraph Restock Agent in background if stock fell below safety threshold
+  // Auto-trigger Groq AI Restock Agent in background if stock fell below safety threshold
   let restockResult = null;
   if (isLowStock) {
     try {
-      restockResult = await triggerRestockWorkflow({ productId, userId });
-      logger.info(`🤖 Auto-triggered restock workflow on sale for product #${productId}. Status: ${restockResult.status}`);
+      restockResult = await runRestockProcurementAgent({ productId, userId });
+      logger.info(`🤖 Groq AI auto-triggered restock workflow on sale for product #${productId}. Status: ${restockResult.status}`);
     } catch (agentErr) {
-      logger.warn(`Auto-restock trigger warning for product #${productId}: ${agentErr.message}`);
+      logger.warn(`Groq AI auto-restock trigger warning for product #${productId}: ${agentErr.message}`);
     }
   }
 
@@ -95,10 +95,18 @@ export const adjustStock = async ({ productId, newStockValue, reason = 'Manual A
   }
 };
 
-export const receiveStock = async ({ restockRequestId, userId }) => {
+export const receiveStock = async ({ restockRequestId, purchaseOrderId, userId }) => {
   const transaction = await sequelize.transaction();
   try {
-    const restockReq = await RestockRequest.findByPk(restockRequestId, {
+    let targetRestockId = restockRequestId;
+    if (!targetRestockId && purchaseOrderId) {
+      const poObj = await PurchaseOrder.findByPk(purchaseOrderId, { transaction });
+      if (poObj) {
+        targetRestockId = poObj.restockRequestId;
+      }
+    }
+
+    const restockReq = await RestockRequest.findByPk(targetRestockId, {
       include: [
         { model: Product, as: 'product' },
         { model: PurchaseOrder, as: 'purchaseOrder' }
@@ -108,7 +116,7 @@ export const receiveStock = async ({ restockRequestId, userId }) => {
     });
 
     if (!restockReq) {
-      throw new Error(`Restock request #${restockRequestId} not found.`);
+      throw new Error(`Restock request #${targetRestockId} not found.`);
     }
 
     let po = restockReq.purchaseOrder;

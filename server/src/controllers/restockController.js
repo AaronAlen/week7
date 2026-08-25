@@ -1,4 +1,4 @@
-import { triggerRestockWorkflow } from '../services/agentService.js';
+import { runRestockProcurementAgent } from '../services/groqAgentService.js';
 import { receiveStock } from '../services/inventoryService.js';
 import { RestockRequest, Product, PurchaseOrder, ApprovalsQueue, User } from '../models/index.js';
 import { z } from 'zod';
@@ -10,7 +10,7 @@ const triggerSchema = z.object({
 export const triggerRestock = async (req, res, next) => {
   try {
     const validated = triggerSchema.parse(req.body);
-    const result = await triggerRestockWorkflow({
+    const result = await runRestockProcurementAgent({
       productId: validated.productId,
       userId: req.user.id
     });
@@ -88,8 +88,8 @@ export const retryRestock = async (req, res, next) => {
       return res.status(400).json({ error: `Cannot retry restock request with status '${restock.status}'. Only REJECTED or CANCELLED requests can be retried.` });
     }
 
-    // Trigger fresh workflow for the product
-    const result = await triggerRestockWorkflow({
+    // Trigger fresh Groq AI workflow for the product
+    const result = await runRestockProcurementAgent({
       productId: restock.productId,
       userId: req.user.id
     });
@@ -97,7 +97,7 @@ export const retryRestock = async (req, res, next) => {
     req.app.get('io')?.emit('data_updated');
 
     res.json({
-      message: 'Restock workflow re-triggered successfully',
+      message: 'Restock workflow re-triggered successfully with Groq AI',
       result
     });
   } catch (error) {

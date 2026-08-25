@@ -1,12 +1,26 @@
 import React from 'react';
-import { useAuth } from '../context/AuthContext.jsx';
-import { useTheme } from '../context/ThemeContext.jsx';
-import { LogOut, User as UserIcon, ShieldAlert, Cpu, Sun, Moon } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { useAppDispatch, useAppSelector } from '../store/index.ts';
+import { logout } from '../store/slices/authSlice.ts';
+import { toggleTheme } from '../store/slices/themeSlice.ts';
+import { LogOut, User as UserIcon, Cpu, Sun, Moon } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import api from '../services/api.ts';
 
-export const Navbar = () => {
-  const { user, logout } = useAuth();
-  const { theme, toggleTheme } = useTheme();
+export const Navbar: React.FC = () => {
+  const dispatch = useAppDispatch();
+  const navigate = useNavigate();
+  const user = useAppSelector((state) => state.auth.user);
+  const theme = useAppSelector((state) => state.theme.mode);
+
+  const handleLogout = async () => {
+    try {
+      await api.post('/auth/logout');
+    } catch {
+      // Ignore network failures on logout
+    }
+    dispatch(logout());
+    navigate('/login');
+  };
 
   return (
     <header className="navbar-header bg-slate-900/80 backdrop-blur border-b border-slate-800 sticky top-0 z-30 px-6 py-3 transition-colors duration-200">
@@ -16,14 +30,14 @@ export const Navbar = () => {
             <Cpu className="w-8 h-8 text-blue-500 animate-pulse" />
             <span className="text-xl font-bold tracking-tight logo-text text-white">Stock<span className="text-blue-500">Pilot</span></span>
           </Link>
-          <span className="hidden sm:inline-block text-xs px-2.5 py-1 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 font-mono">
-            LangGraph
+          <span className="hidden sm:inline-block text-xs px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-mono font-medium">
+            ⚡ Groq AI
           </span>
         </div>
 
         <div className="flex items-center space-x-3">
           <button
-            onClick={toggleTheme}
+            onClick={() => dispatch(toggleTheme())}
             className="p-2 rounded-xl bg-slate-800/80 hover:bg-slate-700/80 text-slate-300 border border-slate-700 transition flex items-center space-x-1.5 text-xs font-medium theme-toggle-btn"
             title={`Switch to ${theme === 'dark' ? 'Light' : 'Dark'} Mode`}
           >
@@ -51,7 +65,7 @@ export const Navbar = () => {
               </div>
 
               <button
-                onClick={logout}
+                onClick={handleLogout}
                 className="flex items-center space-x-1.5 text-xs font-semibold px-3 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white shadow-sm shadow-rose-600/20 transition logout-btn"
               >
                 <LogOut className="w-3.5 h-3.5 text-white" />

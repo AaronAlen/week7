@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import api from '../services/api.js';
-import { POStatusBadge } from '../components/StatusBadge.jsx';
+import { POStatusBadge } from '../components/StatusBadge.tsx';
 import { FileText, RefreshCw, Mail } from 'lucide-react';
 import { useSocket } from '../context/SocketContext.jsx';
 

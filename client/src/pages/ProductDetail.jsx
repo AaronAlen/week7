@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import api from '../services/api.js';
-import { StockStatusBadge, RestockStatusBadge, POStatusBadge } from '../components/StatusBadge.jsx';
+import { StockStatusBadge, RestockStatusBadge, POStatusBadge } from '../components/StatusBadge.tsx';
 import {
   Package,
   ArrowLeft,

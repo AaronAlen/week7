@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import api from '../services/api.js';
-import { StockStatusBadge } from '../components/StatusBadge.jsx';
+import { StockStatusBadge } from '../components/StatusBadge.tsx';
 import {
   ArrowDownUp,
   ShoppingCart,

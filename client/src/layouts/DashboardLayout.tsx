@@ -1,9 +1,9 @@
 import React from 'react';
 import { Outlet } from 'react-router-dom';
-import { Navbar } from '../components/Navbar.jsx';
-import { Sidebar } from '../components/Sidebar.jsx';
+import { Navbar } from '../components/Navbar.tsx';
+import { Sidebar } from '../components/Sidebar.tsx';
 
-export const DashboardLayout = () => {
+export const DashboardLayout: React.FC = () => {
   return (
     <div className="h-screen bg-slate-950 text-slate-100 flex flex-col overflow-hidden">
       <Navbar />

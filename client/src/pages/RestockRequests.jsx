@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import api from '../services/api.js';
-import { RestockStatusBadge } from '../components/StatusBadge.jsx';
+import { RestockStatusBadge } from '../components/StatusBadge.tsx';
 import {
   RefreshCw,
   PackageCheck,

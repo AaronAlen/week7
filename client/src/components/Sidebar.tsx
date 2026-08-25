@@ -1,6 +1,7 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext.jsx';
+import { useAppSelector } from '../store/index.ts';
+import { UserRole } from '../types/index.ts';
 import {
   LayoutDashboard,
   Package,
@@ -14,10 +15,22 @@ import {
   UserCheck
 } from 'lucide-react';
 
-export const Sidebar = () => {
-  const { hasRole } = useAuth();
+interface SidebarLink {
+  to: string;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+  roles?: UserRole[];
+}
 
-  const links = [
+export const Sidebar: React.FC = () => {
+  const user = useAppSelector((state) => state.auth.user);
+
+  const hasRole = (...roles: UserRole[]): boolean => {
+    if (!user) return false;
+    return roles.includes(user.role);
+  };
+
+  const links: SidebarLink[] = [
     { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { to: '/products', label: 'Products', icon: Package },
     { to: '/inventory', label: 'Sales & Inventory', icon: ArrowDownUp },
@@ -57,8 +70,8 @@ export const Sidebar = () => {
       </nav>
 
       <div className="pt-4 border-t border-slate-800 text-xs text-slate-500 space-y-1">
-        <p className="font-medium text-slate-400">StockPilot HITL v1.0</p>
-        <p>LangGraph Agent Workflow</p>
+        <p className="font-medium text-slate-400">StockPilot AI v2.0</p>
+        <p>Groq LLaMA 3.3 Autonomous Agent</p>
       </div>
     </aside>
   );
