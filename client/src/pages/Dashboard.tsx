@@ -18,7 +18,8 @@ import {
   BrainCircuit
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { useAppSelector } from '../store/index.js';
+import { useAppSelector } from '../store/index.ts';
+import { FormattedAiResponse } from '../components/FormattedAiResponse.tsx';
 
 export const Dashboard: React.FC = () => {
   const user = useAppSelector((state) => state.auth.user);
@@ -208,17 +209,27 @@ export const Dashboard: React.FC = () => {
 
         {/* AI Answer Box */}
         {aiAnswer && (
-          <div className="mt-4 p-4 rounded-xl bg-slate-950/90 border border-indigo-500/30 text-sm text-slate-200 animate-in fade-in duration-300">
-            <div className="flex items-center justify-between mb-2 pb-2 border-b border-slate-800">
-              <span className="text-xs font-semibold text-indigo-400 flex items-center space-x-1.5">
-                <Sparkles className="w-3.5 h-3.5 text-indigo-400" />
-                <span>Groq LLaMA 3.3 Analysis</span>
-              </span>
-              <button onClick={() => setAiAnswer(null)} className="text-xs text-slate-500 hover:text-slate-300">Close</button>
+          <div className="mt-5 p-5 rounded-2xl bg-slate-950/95 border border-indigo-500/40 shadow-2xl backdrop-blur-md animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between mb-3 pb-3 border-b border-indigo-500/20">
+              <div className="flex items-center space-x-2">
+                <div className="w-6 h-6 rounded-lg bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
+                  <Sparkles className="w-3.5 h-3.5" />
+                </div>
+                <span className="text-xs sm:text-sm font-bold text-white tracking-tight">
+                  StockPilot AI Intelligence & Analytics
+                </span>
+                <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                  Live Database Telemetry
+                </span>
+              </div>
+              <button
+                onClick={() => setAiAnswer(null)}
+                className="text-xs text-slate-400 hover:text-white px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 hover:border-slate-700 transition"
+              >
+                Close ✕
+              </button>
             </div>
-            <div className="prose prose-invert prose-sm max-w-none whitespace-pre-wrap leading-relaxed">
-              {aiAnswer}
-            </div>
+            <FormattedAiResponse content={aiAnswer} />
           </div>
         )}
       </div>
