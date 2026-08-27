@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { useAppDispatch, useAppSelector } from '../store/index.js';
-import { setCredentials } from '../store/slices/authSlice.js';
-import { toggleTheme } from '../store/slices/themeSlice.js';
+import { useNavigate } from 'react-router-dom';
+import { useAppDispatch, useAppSelector } from '../store/index.ts';
+import { setCredentials } from '../store/slices/authSlice.ts';
+import { toggleTheme } from '../store/slices/themeSlice.ts';
 import api from '../services/api.ts';
 import { Cpu, Lock, Mail, AlertCircle, Sun, Moon } from 'lucide-react';
 
@@ -99,28 +99,10 @@ export const Login: React.FC = () => {
             </div>
           </div>
 
-          {/* Demo quick fill credentials */}
-          <div className="flex flex-wrap gap-2 text-[10px]">
-            {[
-              { label: 'Admin', email: 'admin@stockpilot.io' },
-              { label: 'Manager', email: 'manager@stockpilot.io' },
-              { label: 'Staff', email: 'staff@stockpilot.io' }
-            ].map(({ label, email: e }) => (
-              <button
-                type="button"
-                key={label}
-                onClick={() => { setEmail(e); setPassword('password123'); }}
-                className="px-2.5 py-1 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 border border-slate-700 text-[10px] transition cursor-pointer"
-              >
-                Fill {label}
-              </button>
-            ))}
-          </div>
-
           <button
             type="submit"
             disabled={submitting}
-            className="w-full bg-blue-600 hover:bg-blue-500 text-white font-medium py-2.5 rounded-xl transition shadow-lg shadow-blue-600/20 disabled:opacity-50"
+            className="w-full bg-blue-600 hover:bg-blue-500 text-white font-medium py-2.5 rounded-xl transition shadow-lg shadow-blue-600/20 disabled:opacity-50 mt-2"
           >
             {submitting ? 'Authenticating...' : 'Sign In'}
           </button>
