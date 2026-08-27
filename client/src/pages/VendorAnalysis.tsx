@@ -521,12 +521,12 @@ export const VendorAnalysis: React.FC = () => {
                       onClick={() => setPriorityFocus(item.key)}
                       className={`p-2.5 rounded-xl border text-left transition flex flex-col justify-between ${
                         priorityFocus === item.key
-                          ? 'bg-blue-600/20 border-blue-500 text-white'
-                          : 'bg-slate-950/60 border-slate-800 text-slate-400 hover:border-slate-700 hover:text-slate-200'
+                          ? 'bg-blue-600/20 border-blue-500 text-blue-900 dark:text-white font-bold shadow-sm'
+                          : 'bg-slate-950/60 border-slate-800 text-slate-700 dark:text-slate-400 hover:border-slate-700 hover:text-slate-900 dark:hover:text-slate-200'
                       }`}
                     >
-                      <span className="text-xs font-semibold">{item.label}</span>
-                      <span className="text-[10px] text-slate-500 mt-1">{item.desc}</span>
+                      <span className="text-xs font-bold text-blue-950 dark:text-slate-100">{item.label}</span>
+                      <span className="text-[10px] text-blue-800/80 dark:text-slate-400 mt-1">{item.desc}</span>
                     </button>
                   ))}
                 </div>

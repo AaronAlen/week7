@@ -91,6 +91,8 @@ export const runCustomerRefundAgent = async ({
 
   const systemPrompt = `You are StockPilot's Senior Autonomous Customer Support & Refund Policy AI Agent.
 Analyze the customer's return/refund claim or inquiry using policy guidelines, intent classification, and deep contextual reasoning.
+Address the customer's specific message, exact claim reason, and the elapsed purchase timeframe with personalized, professional care.
+
 You must respond with ONLY a valid JSON object matching this exact structure:
 {
   "intent": "REFUND_REQUEST" | "DAMAGE_CLAIM" | "EXCHANGE_REQUEST" | "INQUIRY" | "INVALID_CLAIM",
@@ -110,18 +112,22 @@ Order Number: ${orderNumber}
 Product: ${product ? `${product.name} (SKU: ${product.sku})` : 'General Catalog Item'}
 Claimed Amount: $${numAmount.toFixed(2)}
 Days Elapsed Since Purchase: ${numDays} days
-Customer Claim Reason Category: ${reason}
+Customer Stated Reason: ${reason}
 Customer Actual Message: "${customerMessage}"
 
 EVALUATION RULES:
-1. Intent Classification:
-   - If customer's actual message is an unrelated question (e.g. trivia, general question like "what is the capital of India"), set intent = "INQUIRY", isEligible = false, autoRefundApproved = false, requiresHumanApproval = false. Answer their question courteously in the customerEmailDraft (e.g. "The capital of India is New Delhi...") while noting no refund is needed. In policyExplanation explain that the message is a general question and not an order damage claim.
-   - If the message describes actual damaged goods, defects, or return requests, evaluate against store policy.
-2. Standard Return Policy:
-   - Window: 30 days. Auto-Approval Threshold: <= $150.00.
-   - If amount > $150.00, set requiresHumanApproval = true and autoRefundApproved = false (must escalate to manager for review).
-   - If amount <= $150.00 and within 30 days with genuine damage/return, set autoRefundApproved = true.
-3. Write a personalized, context-specific customerEmailDraft addressing their EXACT message.`;
+1. Intent & Context Analysis:
+   - Carefully read the customer's actual message "${customerMessage}".
+   - If the message is a general/unrelated inquiry, classify as "INQUIRY".
+   - If the message reports broken goods, cracks, transit damage, or defect, classify as "DAMAGE_CLAIM".
+   - If the message reports general return or change of mind, classify as "REFUND_REQUEST".
+2. Store Policy Guidelines:
+   - Return Window: 30 days from purchase.
+   - Auto-Approval Threshold: <= $150.00.
+   - Case A: If purchase was made > 30 days ago (e.g. ${numDays} days), the claim has expired. Set isEligible = false, autoRefundApproved = false, recommendedAction = "REJECT_EXPIRED". Draft a polite email explaining the 30-day policy limitation.
+   - Case B: If within 30 days but amount > $150.00 (e.g. $${numAmount.toFixed(2)}), set requiresHumanApproval = true, autoRefundApproved = false, recommendedAction = "ESCALATE_TO_MANAGER". Draft an email acknowledging their specific issue (referencing their actual message) and letting them know a manager is reviewing the claim.
+   - Case C: If within 30 days and <= $150.00, set autoRefundApproved = true, recommendedAction = "AUTO_REFUND_RESTOCK" (or SCRAP if damaged). Draft an email confirming full refund.
+3. Write a personalized, empathetic, customer-centric customerEmailDraft explicitly referencing the customer's actual words.`;
 
   let decision;
   try {
@@ -140,20 +146,45 @@ EVALUATION RULES:
     logger.warn(`[Groq Refund Agent Fallback] ${err.message}`);
     const isUnderThreshold = numAmount <= 150;
     const isWithinWindow = numDays <= 30;
-    const autoApprove = isUnderThreshold && isWithinWindow;
+    const isDamaged = reason.toLowerCase().includes('damage') || customerMessage.toLowerCase().includes('crack') || customerMessage.toLowerCase().includes('broken') || customerMessage.toLowerCase().includes('torn');
+    const isExpired = numDays > 30;
+
+    let explanation = '';
+    let emailDraft = '';
+    let recAction = 'ESCALATE_TO_MANAGER';
+    let autoApprove = false;
+    let reqHuman = true;
+
+    if (isExpired) {
+      autoApprove = false;
+      reqHuman = true;
+      recAction = 'REJECT_EXPIRED';
+      explanation = `Order was purchased ${numDays} days ago, which exceeds our standard 30-day return policy window. Escalated for supervisor exception evaluation.`;
+      emailDraft = `Dear ${customerName},\n\nThank you for reaching out regarding Order #${orderNumber}.\n\nWe understand you are seeking a refund for your purchase ("${customerMessage}"). Our standard policy allows returns and refund claims within 30 days of purchase. As your order was completed ${numDays} days ago, our management team is reviewing your request to determine if a store credit or replacement exception can be made.\n\nBest regards,\nCustomer Support Team`;
+    } else if (!isUnderThreshold) {
+      autoApprove = false;
+      reqHuman = true;
+      recAction = 'ESCALATE_TO_MANAGER';
+      explanation = `Claim amount of $${numAmount.toFixed(2)} exceeds the automated threshold ($150.00). Flagged for manager review regarding "${customerMessage}".`;
+      emailDraft = `Dear ${customerName},\n\nThank you for contacting us regarding Order #${orderNumber}.\n\nWe have received your request stating: "${customerMessage}". Because your claim amount of $${numAmount.toFixed(2)} is categorized as high-value, our operations manager is reviewing your order details and photos to issue the appropriate authorization within 24 hours.\n\nBest regards,\nCustomer Support Team`;
+    } else {
+      autoApprove = true;
+      reqHuman = false;
+      recAction = isDamaged ? 'AUTO_REFUND_SCRAP' : 'AUTO_REFUND_RESTOCK';
+      explanation = `Claim ($${numAmount.toFixed(2)}, ${numDays} days elapsed) is within the 30-day policy and below the $150 threshold. Auto-approved.`;
+      emailDraft = `Dear ${customerName},\n\nThank you for contacting us regarding Order #${orderNumber}.\n\nWe have processed your refund request ("${customerMessage}") in full for $${numAmount.toFixed(2)}. The funds will return to your original payment method within 3-5 business days.\n\nBest regards,\nCustomer Support Team`;
+    }
 
     decision = {
-      intent: reason.toLowerCase().includes('damage') ? 'DAMAGE_CLAIM' : 'REFUND_REQUEST',
-      isEligible: isWithinWindow || isUnderThreshold,
+      intent: isDamaged ? 'DAMAGE_CLAIM' : 'REFUND_REQUEST',
+      isEligible: !isExpired,
       autoRefundApproved: autoApprove,
-      requiresHumanApproval: !autoApprove,
-      restockEligible: !reason.toLowerCase().includes('damage'),
-      confidenceScore: 0.90,
-      policyExplanation: autoApprove
-        ? `Order ($${numAmount.toFixed(2)}) is within the 30-day window (${numDays} days) and below the $150 auto-approval threshold.`
-        : `Claim ($${numAmount.toFixed(2)}, ${numDays} days elapsed) requires manager evaluation under safety guardrails.`,
-      recommendedAction: autoApprove ? 'AUTO_REFUND_RESTOCK' : 'ESCALATE_TO_MANAGER',
-      customerEmailDraft: `Dear ${customerName},\n\nThank you for reaching out regarding order #${orderNumber}. ${autoApprove ? `We have processed your refund of $${numAmount.toFixed(2)} in full.` : `Our operations management team is reviewing your request and will follow up within 24 hours.`}\n\nBest regards,\nCustomer Support Team`
+      requiresHumanApproval: reqHuman,
+      restockEligible: !isDamaged,
+      confidenceScore: 0.95,
+      policyExplanation: explanation,
+      recommendedAction: recAction,
+      customerEmailDraft: emailDraft
     };
   }
 
@@ -631,7 +662,6 @@ export const runInventoryAnalyticsAgent = async ({ query, userId }) => {
 
   const pendingApprovalsCount = await ApprovalsQueue.count({ where: { status: 'PENDING' } });
   const pendingRefundsCount = await RefundRequest.count({ where: { status: 'PENDING_APPROVAL' } });
-  const pendingFraudCount = await FraudAlert.count({ where: { status: 'PENDING_REVIEW' } });
 
   const contextData = {
     totalProductsCount: products.length,
@@ -643,7 +673,6 @@ export const runInventoryAnalyticsAgent = async ({ query, userId }) => {
     totalInventoryValuation: `$${totalInventoryValuation.toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
     pendingRestockApprovals: pendingApprovalsCount,
     pendingRefundApprovals: pendingRefundsCount,
-    pendingFraudReviews: pendingFraudCount,
     allProductList: products.map(p => ({
       name: p.name,
       sku: p.sku,
@@ -662,7 +691,7 @@ export const runInventoryAnalyticsAgent = async ({ query, userId }) => {
 You have real-time live database telemetry spanning catalog products, current vs target stock, safety thresholds, sales velocity, valuation, and approvals.
 
 CRITICAL SCOPE & DOMAIN BOUNDARY:
-1. STRICT SCOPE ENFORCEMENT: You must ONLY answer questions directly related to StockPilot's project database: inventory stock levels, product catalog, safety thresholds, target counts, sales velocity, suppliers, purchase orders, restock workflows, customer refunds, and fraud telemetry.
+1. STRICT SCOPE ENFORCEMENT: You must ONLY answer questions directly related to StockPilot's project database: inventory stock levels, product catalog, safety thresholds, target counts, sales velocity, suppliers, purchase orders, restock workflows, and customer refunds.
 2. REJECT GENERAL / TRIVIA QUESTIONS: If the user asks an unrelated general knowledge question (e.g., geography, trivia, "what is the capital of India", general world facts, politics, weather, entertainment, etc.), DO NOT answer the general question.
    - Politely decline by responding:
    "I am StockPilot's specialized Inventory & Operations Intelligence Agent. I only answer questions related to our project's inventory database, product catalog, stock levels, suppliers, and procurement workflows."
@@ -680,7 +709,6 @@ LIVE DATABASE SNAPSHOT:
 - Total Inventory Capital Valuation: ${contextData.totalInventoryValuation}
 - Pending Restock Approvals (> $1000): ${contextData.pendingRestockApprovals}
 - Pending Refund Approvals (> $150): ${contextData.pendingRefundApprovals}
-- Flagged High-Risk Orders: ${contextData.pendingFraudReviews}
 - Full Product Detail Records: ${JSON.stringify(contextData.allProductList, null, 2)}`;
 
   try {
@@ -704,8 +732,7 @@ LIVE DATABASE SNAPSHOT:
         fastestMoving: contextData.topFastestMovingProducts[0] || 'N/A',
         valuation: contextData.totalInventoryValuation,
         pendingApprovals: contextData.pendingRestockApprovals,
-        pendingRefunds: contextData.pendingRefundApprovals,
-        pendingFraud: contextData.pendingFraudReviews
+        pendingRefunds: contextData.pendingRefundApprovals
       }
     };
   } catch (err) {
@@ -739,7 +766,7 @@ LIVE DATABASE SNAPSHOT:
           fallbackAnswer += `* **${p.name}** (\`${p.sku}\`): Current **${p.currentStock} units** (Safety Threshold: **${p.safetyThreshold} units**, Target: **${p.targetStock} units**)\n`;
         });
       } else {
-        fallbackAnswer += `All products are currently above their safety thresholds. No critical stockouts detected.`;
+        fallbackAnswer = `All products are currently above their safety thresholds. No critical stockouts detected.`;
       }
     } else {
       fallbackAnswer = `### 📊 Live Operations & Inventory Analysis\n\n`;
@@ -747,7 +774,7 @@ LIVE DATABASE SNAPSHOT:
       fallbackAnswer += `* **Fastest Moving Products**: ${contextData.topFastestMovingProducts.join(', ')}\n`;
       fallbackAnswer += `* **Low Stock Items Requiring Attention**: ${contextData.lowStockCount > 0 ? contextData.lowStockItems.join(', ') : 'All products currently healthy'}\n`;
       fallbackAnswer += `* **Total Inventory Valuation**: ${contextData.totalInventoryValuation}\n`;
-      fallbackAnswer += `* **Pending Human Approvals**: ${contextData.pendingRestockApprovals} restock order(s), ${contextData.pendingRefundApprovals} refund(s), ${contextData.pendingFraudReviews} fraud alert(s)\n`;
+      fallbackAnswer += `* **Pending Human Approvals**: ${contextData.pendingRestockApprovals} restock order(s), ${contextData.pendingRefundApprovals} refund(s)\n`;
     }
 
     return {
@@ -759,8 +786,7 @@ LIVE DATABASE SNAPSHOT:
         fastestMoving: contextData.topFastestMovingProducts[0] || 'N/A',
         valuation: contextData.totalInventoryValuation,
         pendingApprovals: contextData.pendingRestockApprovals,
-        pendingRefunds: contextData.pendingRefundApprovals,
-        pendingFraud: contextData.pendingFraudReviews
+        pendingRefunds: contextData.pendingRefundApprovals
       }
     };
   }

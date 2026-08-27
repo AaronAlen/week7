@@ -17,7 +17,6 @@ import purchaseOrderRoutes from './routes/purchaseOrderRoutes.js';
 import chatRoutes from './routes/chatRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import refundRoutes from './routes/refundRoutes.js';
-import fraudRoutes from './routes/fraudRoutes.js';
 import vendorEvaluationRoutes from './routes/vendorEvaluationRoutes.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -64,7 +63,6 @@ app.use('/api/purchase-orders', purchaseOrderRoutes);
 app.use('/api/chat', chatRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/refunds', refundRoutes);
-app.use('/api/fraud', fraudRoutes);
 app.use('/api/vendor-evaluations', vendorEvaluationRoutes);
 
 // Swagger Documentation

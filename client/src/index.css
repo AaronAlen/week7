@@ -16,8 +16,8 @@ html.light-theme {
   --bg-card: #ffffff;
   --bg-card-subtle: #f8fafc;
   --text-main: #0f172a;
-  --text-muted: #64748b;
-  --border-color: #e2e8f0;
+  --text-muted: #475569;
+  --border-color: #cbd5e1;
 }
 
 body {
@@ -29,7 +29,7 @@ body {
 }
 
 /* ==========================================================================
-   Comprehensive Light Theme Engine Overrides
+   Comprehensive Light Theme Engine - High Contrast Dark Accents
    ========================================================================== */
 
 /* Main Root & Containers */
@@ -56,7 +56,7 @@ html.light-theme aside {
 }
 
 html.light-theme aside a {
-  color: #475569 !important;
+  color: #334155 !important;
 }
 
 html.light-theme aside a:hover {
@@ -65,9 +65,9 @@ html.light-theme aside a:hover {
 }
 
 html.light-theme aside a.active,
-html.light-theme aside a[class*="bg-blue-600"] {
+html.light-theme aside a.bg-blue-600 {
   background-color: #eff6ff !important;
-  color: #2563eb !important;
+  color: #1d4ed8 !important;
   border-color: #bfdbfe !important;
 }
 
@@ -83,7 +83,7 @@ html.light-theme [class*="bg-slate-900"] {
 html.light-theme [class*="bg-slate-800"],
 html.light-theme [class*="bg-slate-700"] {
   background-color: #f8fafc !important;
-  color: #1e293b !important;
+  color: #0f172a !important;
   border-color: #cbd5e1 !important;
 }
 
@@ -104,66 +104,148 @@ html.light-theme [class*="text-slate-200"] {
 
 html.light-theme [class*="text-slate-300"],
 html.light-theme [class*="text-slate-400"] {
-  color: #334155 !important;
+  color: #1e293b !important;
 }
 
 html.light-theme [class*="text-slate-500"] {
-  color: #64748b !important;
+  color: #475569 !important;
 }
 
-/* High Contrast Light Theme Status Badges & Pill Text */
+/* --------------------------------------------------------------------------
+   Deep Saturated Colors for Badges, Tabs & Buttons in Light Mode
+   -------------------------------------------------------------------------- */
+
+/* Purple (ADMIN role badge, PO SENT status, Agent 5 badges) */
+html.light-theme [class*="text-purple-300"],
+html.light-theme [class*="text-purple-400"],
+html.light-theme [class*="text-purple-500"] {
+  color: #6b21a8 !important; /* Dark bold purple */
+}
+
+html.light-theme [class*="bg-purple-500/10"],
+html.light-theme [class*="bg-purple-600/20"],
+html.light-theme [class*="bg-purple-500/20"],
+html.light-theme [class*="bg-purple-950"] {
+  background-color: #f3e8ff !important;
+  color: #6b21a8 !important;
+  border-color: #d8b4fe !important;
+}
+
+html.light-theme [class*="bg-purple-500/10"] *,
+html.light-theme [class*="bg-purple-600/20"] *,
+html.light-theme [class*="bg-purple-500/20"] * {
+  color: #6b21a8 !important;
+}
+
+/* Blue (Test Refund Agent, MANAGER role, Priority selectors) */
 html.light-theme [class*="text-blue-300"],
 html.light-theme [class*="text-blue-400"] {
-  color: #1d4ed8 !important;
+  color: #1e40af !important; /* Dark bold navy blue */
 }
 
-html.light-theme [class*="text-rose-400"],
-html.light-theme [class*="text-rose-300"],
-html.light-theme [class*="text-rose-500"] {
-  color: #be123c !important;
+html.light-theme [class*="bg-blue-600/30"],
+html.light-theme [class*="bg-blue-600/20"],
+html.light-theme [class*="bg-blue-600/10"],
+html.light-theme [class*="bg-blue-500/10"],
+html.light-theme [class*="bg-blue-500/20"],
+html.light-theme [class*="bg-blue-950"] {
+  background-color: #dbeafe !important;
+  color: #1e40af !important;
+  border-color: #93c5fd !important;
 }
 
+html.light-theme [class*="bg-blue-600/20"] *,
+html.light-theme [class*="bg-blue-600/10"] *,
+html.light-theme [class*="bg-blue-500/10"] *,
+html.light-theme [class*="bg-blue-500/20"] * {
+  color: #1e40af !important;
+}
+
+/* Amber / Yellow Badges */
 html.light-theme [class*="text-amber-400"],
 html.light-theme [class*="text-amber-300"],
 html.light-theme [class*="text-amber-500"] {
-  color: #b45309 !important;
-}
-
-html.light-theme [class*="text-emerald-400"],
-html.light-theme [class*="text-emerald-300"] {
-  color: #047857 !important;
-}
-
-html.light-theme [class*="text-indigo-400"],
-html.light-theme [class*="text-indigo-300"] {
-  color: #4338ca !important;
-}
-
-/* Badge Background Overrides in Light Theme */
-html.light-theme [class*="bg-blue-600/30"],
-html.light-theme [class*="bg-blue-500/10"],
-html.light-theme [class*="bg-blue-600/20"] {
-  background-color: #dbeafe !important;
-  color: #1d4ed8 !important;
-  border-color: #93c5fd !important;
+  color: #92400e !important; /* Dark amber */
 }
 
 html.light-theme [class*="bg-amber-500/10"],
 html.light-theme [class*="bg-amber-600/20"],
-html.light-theme [class*="bg-amber-500/20"] {
+html.light-theme [class*="bg-amber-500/20"],
+html.light-theme [class*="bg-amber-950"] {
   background-color: #fef3c7 !important;
-  color: #b45309 !important;
+  color: #92400e !important;
   border-color: #fde047 !important;
+}
+
+html.light-theme [class*="bg-amber-500/10"] *,
+html.light-theme [class*="bg-amber-600/20"] * {
+  color: #92400e !important;
+}
+
+/* Rose / Red Badges */
+html.light-theme [class*="text-rose-400"],
+html.light-theme [class*="text-rose-300"],
+html.light-theme [class*="text-rose-500"] {
+  color: #9f1239 !important; /* Dark rose red */
 }
 
 html.light-theme [class*="bg-rose-500/10"],
 html.light-theme [class*="bg-rose-600/10"],
-html.light-theme [class*="bg-rose-500/20"] {
+html.light-theme [class*="bg-rose-600/20"],
+html.light-theme [class*="bg-rose-500/20"],
+html.light-theme [class*="bg-rose-950"] {
   background-color: #ffe4e6 !important;
-  color: #be123c !important;
+  color: #9f1239 !important;
   border-color: #fca5a5 !important;
 }
 
+html.light-theme [class*="bg-rose-500/10"] *,
+html.light-theme [class*="bg-rose-600/20"] * {
+  color: #9f1239 !important;
+}
+
+/* Emerald / Green Badges */
+html.light-theme [class*="text-emerald-400"],
+html.light-theme [class*="text-emerald-300"] {
+  color: #065f46 !important; /* Dark emerald */
+}
+
+html.light-theme [class*="bg-emerald-500/10"],
+html.light-theme [class*="bg-emerald-600/20"],
+html.light-theme [class*="bg-emerald-500/20"],
+html.light-theme [class*="bg-emerald-950"] {
+  background-color: #d1fae5 !important;
+  color: #065f46 !important;
+  border-color: #6ee7b7 !important;
+}
+
+html.light-theme [class*="bg-emerald-500/10"] *,
+html.light-theme [class*="bg-emerald-600/20"] * {
+  color: #065f46 !important;
+}
+
+/* Indigo Badges & Callouts */
+html.light-theme [class*="text-indigo-400"],
+html.light-theme [class*="text-indigo-300"] {
+  color: #3730a3 !important; /* Dark indigo */
+}
+
+html.light-theme [class*="bg-indigo-500/10"],
+html.light-theme [class*="bg-indigo-600/20"],
+html.light-theme [class*="bg-indigo-500/20"],
+html.light-theme [class*="bg-indigo-950"] {
+  background-color: #e0e7ff !important;
+  color: #3730a3 !important;
+  border-color: #a5b4fc !important;
+}
+
+html.light-theme [class*="bg-indigo-500/10"] *,
+html.light-theme [class*="bg-indigo-600/20"] *,
+html.light-theme [class*="bg-indigo-950"] * {
+  color: #3730a3 !important;
+}
+
+/* Logout Button */
 html.light-theme .logout-btn,
 html.light-theme .logout-btn * {
   background-color: #e11d48 !important;
@@ -175,27 +257,21 @@ html.light-theme .logout-btn:hover {
   background-color: #be123c !important;
 }
 
-html.light-theme [class*="bg-emerald-500/10"],
-html.light-theme [class*="bg-emerald-600/20"],
-html.light-theme [class*="bg-emerald-500/20"] {
-  background-color: #d1fae5 !important;
-  color: #047857 !important;
-  border-color: #6ee7b7 !important;
-}
-
-/* Ensure Action Button Texts (e.g. Record Sale, Send, Submit) remain crisp white */
-html.light-theme button[class*="bg-blue-600"],
-html.light-theme button[class*="bg-rose-600"],
-html.light-theme button[class*="bg-emerald-600"],
-html.light-theme a[class*="bg-blue-600"],
-html.light-theme a[class*="bg-rose-600"],
-html.light-theme a[class*="bg-emerald-600"] {
+/* Solid Action Buttons - Crisp White Text */
+html.light-theme button.bg-blue-600,
+html.light-theme button.bg-rose-600,
+html.light-theme button.bg-emerald-600,
+html.light-theme button.bg-purple-600,
+html.light-theme a.bg-blue-600,
+html.light-theme a.bg-rose-600,
+html.light-theme a.bg-emerald-600 {
   color: #ffffff !important;
 }
 
-html.light-theme button[class*="bg-blue-600"] *,
-html.light-theme button[class*="bg-rose-600"] *,
-html.light-theme button[class*="bg-emerald-600"] * {
+html.light-theme button.bg-blue-600 *,
+html.light-theme button.bg-rose-600 *,
+html.light-theme button.bg-emerald-600 *,
+html.light-theme button.bg-purple-600 * {
   color: #ffffff !important;
 }
 
@@ -244,9 +320,9 @@ html.light-theme table thead tr {
 }
 
 html.light-theme table thead th {
-  color: #475569 !important;
+  color: #1e293b !important;
   border-bottom: 1px solid #cbd5e1 !important;
-  font-weight: 600 !important;
+  font-weight: 700 !important;
 }
 
 html.light-theme table tbody tr {
@@ -259,7 +335,7 @@ html.light-theme table tbody tr:hover {
 }
 
 html.light-theme table td {
-  color: #1e293b !important;
+  color: #0f172a !important;
 }
 
 /* Modals & Popovers */
