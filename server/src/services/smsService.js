@@ -65,3 +65,35 @@ export const sendPurchaseOrderSMS = async ({
     return { success: false, error: error.message };
   }
 };
+
+/**
+ * Send Vendor Award / Negotiation SMS
+ */
+export const sendVendorProposalSMS = async ({
+  to,
+  vendorName,
+  message
+}) => {
+  const recipientPhone = to || '+15551234567';
+  const textContent = message || `[StockPilot] Dear ${vendorName}, your proposal has been selected for our procurement RFP. Please check your email for official contract terms.`;
+
+  try {
+    const client = await getTwilioClient();
+    if (client && env.SMS_ENABLED && env.TWILIO_PHONE_NUMBER) {
+      const res = await client.messages.create({
+        body: textContent,
+        from: env.TWILIO_PHONE_NUMBER,
+        to: recipientPhone
+      });
+      logger.info(`📱 Vendor SMS dispatched via Twilio to ${recipientPhone} (SID: ${res.sid})`);
+      return { success: true, sid: res.sid, provider: 'twilio', recipient: recipientPhone };
+    }
+
+    // Fallback Mock Logger Transport
+    logger.info(`📱 [MOCK SMS DISPATCH] To: ${recipientPhone} (${vendorName}) | Text: "${textContent}"`);
+    return { success: true, provider: 'mock_logger', message: 'Mock SMS logged successfully', recipient: recipientPhone };
+  } catch (error) {
+    logger.warn(`📱 Vendor SMS dispatch failed for ${recipientPhone}: ${error.message}`);
+    return { success: false, error: error.message };
+  }
+};

@@ -39,8 +39,10 @@ export const postChatMessage = async (req, res, next) => {
       include: [{ model: User, as: 'sender', attributes: ['id', 'name', 'email', 'role'] }]
     });
 
-    if (req.app.get('io')) {
-      req.app.get('io').emit('chat_message', fullMessage);
+    // Broadcast to ALL connected socket clients
+    const io = req.app.get('io');
+    if (io) {
+      io.emit('chat_message', fullMessage);
     }
 
     res.status(201).json(fullMessage);

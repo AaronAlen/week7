@@ -8,6 +8,7 @@ const router = Router();
 router.use(authenticateToken);
 
 router.post('/approve-restock', authorizeRoles('ADMIN', 'MANAGER'), approveRestock);
+router.post('/approvals/approve', authorizeRoles('ADMIN', 'MANAGER'), approveRestock);
 router.get('/approvals', authorizeRoles('ADMIN', 'MANAGER'), getApprovals);
 router.delete('/approvals/:id', authorizeRoles('ADMIN', 'MANAGER'), cancelApproval);
 

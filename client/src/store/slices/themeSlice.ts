@@ -1,15 +1,13 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
 
-type ThemeMode = 'dark' | 'light';
-
-interface ThemeState {
-  mode: ThemeMode;
-}
-
-const getInitialTheme = (): ThemeMode => {
-  const saved = localStorage.getItem('stockpilot_theme') as ThemeMode;
+const getInitialTheme = (): 'light' | 'dark' => {
+  const saved = localStorage.getItem('stockpilot_theme');
   return saved === 'light' ? 'light' : 'dark';
 };
+
+export interface ThemeState {
+  mode: 'light' | 'dark';
+}
 
 const initialState: ThemeState = {
   mode: getInitialTheme()
@@ -33,7 +31,7 @@ export const themeSlice = createSlice({
         root.setAttribute('data-theme', 'dark');
       }
     },
-    setTheme: (state, action: PayloadAction<ThemeMode>) => {
+    setTheme: (state, action: PayloadAction<'light' | 'dark'>) => {
       state.mode = action.payload;
       localStorage.setItem('stockpilot_theme', state.mode);
     }

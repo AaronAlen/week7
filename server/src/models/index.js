@@ -7,11 +7,15 @@ import PurchaseOrder from './PurchaseOrder.js';
 import ApprovalsQueue from './ApprovalsQueue.js';
 import AgentLog from './AgentLog.js';
 import ChatMessage from './ChatMessage.js';
+import RefundRequest from './RefundRequest.js';
+import FraudAlert from './FraudAlert.js';
+import VendorEvaluation from './VendorEvaluation.js';
 
-// Define Model Associations
+// Product & Transactions
 Product.hasMany(InventoryTransaction, { foreignKey: 'productId', as: 'transactions' });
 InventoryTransaction.belongsTo(Product, { foreignKey: 'productId', as: 'product' });
 
+// Restock Requests
 Product.hasMany(RestockRequest, { foreignKey: 'productId', as: 'restockRequests' });
 RestockRequest.belongsTo(Product, { foreignKey: 'productId', as: 'product' });
 
@@ -30,14 +34,34 @@ ApprovalsQueue.belongsTo(RestockRequest, { foreignKey: 'restockRequestId', as: '
 User.hasMany(ApprovalsQueue, { foreignKey: 'approvedBy', as: 'approvals' });
 ApprovalsQueue.belongsTo(User, { foreignKey: 'approvedBy', as: 'approver' });
 
+// Agent Logs
 Product.hasMany(AgentLog, { foreignKey: 'productId', as: 'agentLogs' });
 AgentLog.belongsTo(Product, { foreignKey: 'productId', as: 'product' });
 
 RestockRequest.hasMany(AgentLog, { foreignKey: 'restockRequestId', as: 'agentLogs' });
 AgentLog.belongsTo(RestockRequest, { foreignKey: 'restockRequestId', as: 'restockRequest' });
 
+// Chat Messages
 User.hasMany(ChatMessage, { foreignKey: 'senderId', as: 'sentMessages' });
 ChatMessage.belongsTo(User, { foreignKey: 'senderId', as: 'sender' });
+
+// Refunds
+Product.hasMany(RefundRequest, { foreignKey: 'productId', as: 'refundRequests' });
+RefundRequest.belongsTo(Product, { foreignKey: 'productId', as: 'product' });
+
+User.hasMany(RefundRequest, { foreignKey: 'reviewedBy', as: 'reviewedRefunds' });
+RefundRequest.belongsTo(User, { foreignKey: 'reviewedBy', as: 'reviewer' });
+
+// Fraud Alerts
+Product.hasMany(FraudAlert, { foreignKey: 'productId', as: 'fraudAlerts' });
+FraudAlert.belongsTo(Product, { foreignKey: 'productId', as: 'product' });
+
+User.hasMany(FraudAlert, { foreignKey: 'reviewedBy', as: 'reviewedFraudAlerts' });
+FraudAlert.belongsTo(User, { foreignKey: 'reviewedBy', as: 'reviewer' });
+
+// Vendor Evaluations
+User.hasMany(VendorEvaluation, { foreignKey: 'evaluatedBy', as: 'vendorEvaluations' });
+VendorEvaluation.belongsTo(User, { foreignKey: 'evaluatedBy', as: 'evaluator' });
 
 export {
   sequelize,
@@ -48,5 +72,8 @@ export {
   PurchaseOrder,
   ApprovalsQueue,
   AgentLog,
-  ChatMessage
+  ChatMessage,
+  RefundRequest,
+  FraudAlert,
+  VendorEvaluation
 };

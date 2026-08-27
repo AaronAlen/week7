@@ -1,7 +1,22 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { ApprovalItem } from '../../types/index.ts';
 
-interface ApprovalsState {
+export interface ApprovalItem {
+  id: number;
+  productId: number;
+  quantity: number;
+  totalCost: number;
+  reason?: string;
+  status: 'PENDING' | 'APPROVED' | 'REJECTED';
+  product?: {
+    name: string;
+    sku: string;
+    currentStock: number;
+    safetyThreshold: number;
+  };
+  createdAt: string;
+}
+
+export interface ApprovalsState {
   items: ApprovalItem[];
   loading: boolean;
   error: string | null;
@@ -25,7 +40,10 @@ export const approvalsSlice = createSlice({
     removeApproval: (state, action: PayloadAction<number>) => {
       state.items = state.items.filter(a => a.id !== action.payload);
     },
-    updateApprovalStatus: (state, action: PayloadAction<{ id: number; status: 'APPROVED' | 'REJECTED' }>) => {
+    updateApprovalStatus: (
+      state,
+      action: PayloadAction<{ id: number; status: 'PENDING' | 'APPROVED' | 'REJECTED' }>
+    ) => {
       const item = state.items.find(a => a.id === action.payload.id);
       if (item) {
         item.status = action.payload.status;

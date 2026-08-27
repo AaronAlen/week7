@@ -1,7 +1,7 @@
 import React from 'react';
-import { useAppDispatch, useAppSelector } from '../store/index.ts';
-import { logout } from '../store/slices/authSlice.ts';
-import { toggleTheme } from '../store/slices/themeSlice.ts';
+import { useAppDispatch, useAppSelector } from '../store/index.js';
+import { logout } from '../store/slices/authSlice.js';
+import { toggleTheme } from '../store/slices/themeSlice.js';
 import { LogOut, User as UserIcon, Cpu, Sun, Moon } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import api from '../services/api.ts';

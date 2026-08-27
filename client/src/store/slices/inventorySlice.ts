@@ -1,7 +1,18 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { InventoryTransaction } from '../../types/index.ts';
 
-interface InventoryState {
+export interface InventoryTransaction {
+  id: number;
+  productId: number;
+  type: 'SALE' | 'RESTOCK' | 'ADJUSTMENT';
+  quantity: number;
+  previousStock: number;
+  newStock: number;
+  referenceId?: string;
+  notes?: string;
+  createdAt: string;
+}
+
+export interface InventoryState {
   transactions: InventoryTransaction[];
   loading: boolean;
   error: string | null;
@@ -35,5 +46,11 @@ export const inventorySlice = createSlice({
   }
 });
 
-export const { setTransactions, addTransaction, setInventoryLoading, setInventoryError } = inventorySlice.actions;
+export const {
+  setTransactions,
+  addTransaction,
+  setInventoryLoading,
+  setInventoryError
+} = inventorySlice.actions;
+
 export default inventorySlice.reducer;

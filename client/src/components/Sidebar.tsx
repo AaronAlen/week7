@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { useAppSelector } from '../store/index.ts';
+import { useAppSelector } from '../store/index.js';
 import { UserRole } from '../types/index.ts';
 import {
   LayoutDashboard,
@@ -12,7 +12,8 @@ import {
   Activity,
   Users,
   MessageSquare,
-  UserCheck
+  UserCheck,
+  Award
 } from 'lucide-react';
 
 interface SidebarLink {
@@ -36,6 +37,7 @@ export const Sidebar: React.FC = () => {
     { to: '/inventory', label: 'Sales & Inventory', icon: ArrowDownUp },
     { to: '/restocks', label: 'Restock Requests', icon: RefreshCw },
     { to: '/pending-approvals', label: 'Pending Approvals', icon: CheckSquare, roles: ['ADMIN', 'MANAGER'] },
+    { to: '/vendor-analysis', label: 'Supplier Intelligence', icon: Award, roles: ['ADMIN', 'MANAGER'] },
     { to: '/purchase-orders', label: 'Purchase Orders', icon: FileText },
     { to: '/agent-logs', label: 'Agent Activity Logs', icon: Activity },
     { to: '/chat', label: 'Real-Time Chat', icon: MessageSquare },

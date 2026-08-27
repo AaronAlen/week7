@@ -99,3 +99,50 @@ export const sendPurchaseOrderEmail = async ({
     return { success: false, error: error.message };
   }
 };
+
+/**
+ * Send Vendor RFP Award / Negotiation Email
+ */
+export const sendVendorProposalEmail = async ({
+  to,
+  vendorName,
+  subject,
+  content
+}) => {
+  try {
+    const mailer = await setupTransporter();
+    const recipient = to || 'vendor@example.com';
+    const emailSubject = subject || `StockPilot Sourcing RFP Award & Next Steps - ${vendorName}`;
+
+    const mailOptions = {
+      from: env.EMAIL_FROM,
+      to: recipient,
+      subject: emailSubject,
+      text: content,
+      html: `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; padding: 24px; color: #1e293b; max-width: 650px; border: 1px solid #e2e8f0; border-radius: 12px; background: #ffffff; margin: 0 auto;">
+          <div style="border-bottom: 2px solid #3b82f6; padding-bottom: 12px; margin-bottom: 20px;">
+            <h2 style="color: #1e40af; margin: 0; font-size: 20px;">StockPilot Procurement & Supply Chain</h2>
+            <p style="color: #64748b; font-size: 13px; margin: 4px 0 0 0;">Official Vendor RFP Communication</p>
+          </div>
+          
+          <div style="white-space: pre-wrap; font-size: 14px; line-height: 1.6; color: #334155; margin-bottom: 24px;">
+${content.replace(/</g, '&lt;').replace(/>/g, '&gt;')}
+          </div>
+
+          <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; font-size: 12px; color: #64748b;">
+            <p style="margin: 0;"><strong>Recipient:</strong> ${vendorName} &lt;${recipient}&gt;</p>
+            <p style="margin: 4px 0 0 0;">Sent autonomously via StockPilot Supplier Intelligence AI Platform.</p>
+          </div>
+        </div>
+      `
+    };
+
+    const info = await mailer.sendMail(mailOptions);
+    logger.info(`📧 Vendor proposal email dispatched to ${recipient}: ${info.messageId || 'mock'}`);
+    return { success: true, messageId: info.messageId || 'mock_sent', recipient };
+  } catch (error) {
+    logger.warn(`📧 Vendor email dispatch failed for ${to}: ${error.message}`);
+    return { success: false, error: error.message };
+  }
+};

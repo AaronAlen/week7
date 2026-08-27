@@ -1,9 +1,16 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { ChatMessage, AIAnalyticsResponse } from '../../types/index.ts';
 
-interface ChatState {
+export interface ChatMessage {
+  id?: number | string;
+  sender: 'user' | 'agent' | 'system';
+  text: string;
+  timestamp?: string;
+  structuredData?: any;
+}
+
+export interface ChatState {
   messages: ChatMessage[];
-  aiAssistantResponse: AIAnalyticsResponse | null;
+  aiAssistantResponse: any;
   loading: boolean;
   aiLoading: boolean;
   error: string | null;
@@ -28,7 +35,7 @@ export const chatSlice = createSlice({
     addMessage: (state, action: PayloadAction<ChatMessage>) => {
       state.messages.push(action.payload);
     },
-    setAiAssistantResponse: (state, action: PayloadAction<AIAnalyticsResponse | null>) => {
+    setAiAssistantResponse: (state, action: PayloadAction<any>) => {
       state.aiAssistantResponse = action.payload;
       state.aiLoading = false;
     },

@@ -1,9 +1,33 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { RestockRequest, PurchaseOrder } from '../../types/index.ts';
 
-interface RestocksState {
-  requests: RestockRequest[];
-  purchaseOrders: PurchaseOrder[];
+export interface RestockItem {
+  id: number;
+  productId: number;
+  quantity: number;
+  totalCost: number;
+  status: string;
+  requiresHumanReview: boolean;
+  product?: { name: string; sku: string };
+  purchaseOrder?: { id: number; status: string };
+  createdAt?: string;
+}
+
+export interface PurchaseOrderItem {
+  id: number;
+  productId: number;
+  product?: { name: string };
+  supplierName: string;
+  supplierEmail: string;
+  quantity: number;
+  unitCost: number;
+  totalCost: number;
+  status: string;
+  createdAt: string;
+}
+
+export interface RestocksState {
+  requests: RestockItem[];
+  purchaseOrders: PurchaseOrderItem[];
   loading: boolean;
   error: string | null;
 }
@@ -19,29 +43,29 @@ export const restocksSlice = createSlice({
   name: 'restocks',
   initialState,
   reducers: {
-    setRestockRequests: (state, action: PayloadAction<RestockRequest[]>) => {
+    setRestockRequests: (state, action: PayloadAction<RestockItem[]>) => {
       state.requests = action.payload;
       state.loading = false;
       state.error = null;
     },
-    addRestockRequest: (state, action: PayloadAction<RestockRequest>) => {
+    addRestockRequest: (state, action: PayloadAction<RestockItem>) => {
       state.requests.unshift(action.payload);
     },
-    updateRestockRequest: (state, action: PayloadAction<RestockRequest>) => {
+    updateRestockRequest: (state, action: PayloadAction<RestockItem>) => {
       const idx = state.requests.findIndex(r => r.id === action.payload.id);
       if (idx !== -1) {
         state.requests[idx] = action.payload;
       }
     },
-    setPurchaseOrders: (state, action: PayloadAction<PurchaseOrder[]>) => {
+    setPurchaseOrders: (state, action: PayloadAction<PurchaseOrderItem[]>) => {
       state.purchaseOrders = action.payload;
       state.loading = false;
       state.error = null;
     },
-    addPurchaseOrder: (state, action: PayloadAction<PurchaseOrder>) => {
+    addPurchaseOrder: (state, action: PayloadAction<PurchaseOrderItem>) => {
       state.purchaseOrders.unshift(action.payload);
     },
-    updatePurchaseOrder: (state, action: PayloadAction<PurchaseOrder>) => {
+    updatePurchaseOrder: (state, action: PayloadAction<PurchaseOrderItem>) => {
       const idx = state.purchaseOrders.findIndex(p => p.id === action.payload.id);
       if (idx !== -1) {
         state.purchaseOrders[idx] = action.payload;

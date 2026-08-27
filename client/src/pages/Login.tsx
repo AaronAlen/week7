@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useAppDispatch, useAppSelector } from '../store/index.ts';
-import { setCredentials } from '../store/slices/authSlice.ts';
-import { toggleTheme } from '../store/slices/themeSlice.ts';
+import { useAppDispatch, useAppSelector } from '../store/index.js';
+import { setCredentials } from '../store/slices/authSlice.js';
+import { toggleTheme } from '../store/slices/themeSlice.js';
 import api from '../services/api.ts';
 import { Cpu, Lock, Mail, AlertCircle, Sun, Moon } from 'lucide-react';
 

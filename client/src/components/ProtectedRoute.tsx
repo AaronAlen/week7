@@ -1,6 +1,6 @@
 import React from 'react';
 import { Navigate } from 'react-router-dom';
-import { useAppSelector } from '../store/index.ts';
+import { useAppSelector } from '../store/index.js';
 import { UserRole } from '../types/index.ts';
 
 interface ProtectedRouteProps {

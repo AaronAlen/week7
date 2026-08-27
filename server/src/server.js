@@ -10,9 +10,12 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: [env.CLIENT_URL, 'http://localhost:5173', 'http://127.0.0.1:5173'],
+    origin: (origin, callback) => callback(null, true),
+    methods: ['GET', 'POST'],
     credentials: true
-  }
+  },
+  transports: ['polling', 'websocket'],
+  allowEIO3: true
 });
 
 // Attach io instance to app for controller access

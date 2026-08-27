@@ -18,7 +18,7 @@ import {
   BrainCircuit
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { useAppSelector } from '../store/index.ts';
+import { useAppSelector } from '../store/index.js';
 
 export const Dashboard: React.FC = () => {
   const user = useAppSelector((state) => state.auth.user);
@@ -84,9 +84,14 @@ export const Dashboard: React.FC = () => {
     setAiAnswer(null);
     try {
       const res = await api.post<{ success: boolean; answer: string }>('/chat/query', { query: q });
-      setAiAnswer(res.data.answer);
+      if (res.data && res.data.answer) {
+        setAiAnswer(res.data.answer);
+      } else {
+        setAiAnswer('Analysis completed but no response was returned.');
+      }
     } catch (err: any) {
-      setAiAnswer(err.response?.data?.error || 'Failed to analyze inventory data. Please try again.');
+      const serverErr = err.response?.data?.error || err.response?.data?.message || err.message || 'Failed to analyze inventory data. Please try again.';
+      setAiAnswer(`⚠️ Error: ${serverErr}`);
     } finally {
       setAiLoading(false);
     }

@@ -1,24 +1,28 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { User } from '../../types/index.ts';
 
-interface AuthState {
+export interface User {
+  id: number;
+  name: string;
+  email: string;
+  role: 'ADMIN' | 'MANAGER' | 'STAFF';
+}
+
+export interface AuthState {
   user: User | null;
   accessToken: string | null;
   loading: boolean;
   error: string | null;
 }
 
-const getInitialUser = (): User | null => {
-  try {
-    const saved = sessionStorage.getItem('user');
-    return saved ? JSON.parse(saved) : null;
-  } catch {
-    return null;
-  }
-};
-
 const initialState: AuthState = {
-  user: getInitialUser(),
+  user: (() => {
+    try {
+      const saved = sessionStorage.getItem('user');
+      return saved ? JSON.parse(saved) : null;
+    } catch {
+      return null;
+    }
+  })(),
   accessToken: sessionStorage.getItem('accessToken') || null,
   loading: false,
   error: null
@@ -58,5 +62,12 @@ export const authSlice = createSlice({
   }
 });
 
-export const { setCredentials, setAccessToken, logout, setAuthLoading, setAuthError } = authSlice.actions;
+export const {
+  setCredentials,
+  setAccessToken,
+  logout,
+  setAuthLoading,
+  setAuthError
+} = authSlice.actions;
+
 export default authSlice.reducer;

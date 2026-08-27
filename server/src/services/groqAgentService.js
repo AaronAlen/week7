@@ -1,7 +1,18 @@
 import Groq from 'groq-sdk';
 import { Op } from 'sequelize';
 import { env } from '../config/env.js';
-import { Product, InventoryTransaction, RestockRequest, PurchaseOrder, ApprovalsQueue, AgentLog, User } from '../models/index.js';
+import {
+  Product,
+  InventoryTransaction,
+  RestockRequest,
+  PurchaseOrder,
+  ApprovalsQueue,
+  AgentLog,
+  User,
+  RefundRequest,
+  FraudAlert,
+  VendorEvaluation
+} from '../models/index.js';
 import { sendPurchaseOrderEmail } from './emailService.js';
 import { sendPurchaseOrderSMS } from './smsService.js';
 import { logger } from '../utils/logger.js';
@@ -10,9 +21,366 @@ const groq = new Groq({
   apiKey: env.GROQ_API_KEY || process.env.GROQ_API_KEY || 'gsk_fallback_key'
 });
 
+const GROQ_MODELS = [
+  'openai/gpt-oss-120b',
+  'qwen/qwen3.8-27b',
+  'openai/gpt-oss-20b',
+  'qwen/qwen3.6-27b',
+  'groq/compound',
+  'groq/compound-mini'
+];
+
+async function callGroqWithFallback(params) {
+  let lastError = null;
+  for (const model of GROQ_MODELS) {
+    try {
+      return await groq.chat.completions.create({
+        ...params,
+        model
+      });
+    } catch (err) {
+      lastError = err;
+      const isRecoverable =
+        err.status === 404 ||
+        err.status === 413 ||
+        err.status === 429 ||
+        err.code === 'model_not_found' ||
+        err.code === 'model_decommissioned' ||
+        err.code === 'rate_limit_exceeded' ||
+        err.type === 'tokens' ||
+        err.message?.includes('decommissioned') ||
+        err.message?.includes('does not exist') ||
+        err.message?.includes('Request too large') ||
+        err.message?.includes('Rate limit');
+
+      if (isRecoverable) {
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw lastError || new Error('All Groq models failed');
+}
+
 /**
- * AGENT 1: Autonomous Restock Procurement Agent
- * Performs multi-factor demand analysis using Groq LLaMA 3.3 70B.
+ * =========================================================================
+ * AGENT 1: Autonomous Customer Support & Refund Processing Agent
+ * =========================================================================
+ * 4-Step Pipeline:
+ *  1. ROUTE: Reads message, classifies intent (REFUND, DAMAGE, EXCHANGE, INQUIRY)
+ *  2. REASON: Checks purchase date, product condition, return policies, context
+ *  3. VERIFY: Enforces safety guardrail (Threshold $150 & 30-day window)
+ *  4. EXECUTE / PAUSE:
+ *     - Under $150 & Valid -> Auto-approves, restores inventory, generates email draft
+ *     - Over $150 or Policy Exception -> Pauses & pushes to Manager Approval Queue
+ */
+export const runCustomerRefundAgent = async ({
+  orderNumber,
+  customerName,
+  customerEmail,
+  productId,
+  amount,
+  daysSincePurchase = 0,
+  reason,
+  customerMessage,
+  userId
+}) => {
+  const product = productId ? await Product.findByPk(productId) : null;
+  const numAmount = Number(amount) || (product ? Number(product.unitCost) : 50.0);
+  const numDays = Number(daysSincePurchase) || 0;
+
+  const systemPrompt = `You are StockPilot's Senior Autonomous Customer Support & Refund Policy AI Agent.
+Analyze the customer's return/refund claim or inquiry using policy guidelines, intent classification, and deep contextual reasoning.
+You must respond with ONLY a valid JSON object matching this exact structure:
+{
+  "intent": "REFUND_REQUEST" | "DAMAGE_CLAIM" | "EXCHANGE_REQUEST" | "INQUIRY" | "INVALID_CLAIM",
+  "isEligible": boolean,
+  "autoRefundApproved": boolean,
+  "requiresHumanApproval": boolean,
+  "restockEligible": boolean,
+  "confidenceScore": number,
+  "policyExplanation": "string",
+  "recommendedAction": "AUTO_REFUND_RESTOCK" | "AUTO_REFUND_SCRAP" | "ESCALATE_TO_MANAGER" | "ANSWER_INQUIRY" | "REJECT_EXPIRED",
+  "customerEmailDraft": "string"
+}`;
+
+  const userPrompt = `Evaluate incoming customer communication:
+Customer: ${customerName} (${customerEmail})
+Order Number: ${orderNumber}
+Product: ${product ? `${product.name} (SKU: ${product.sku})` : 'General Catalog Item'}
+Claimed Amount: $${numAmount.toFixed(2)}
+Days Elapsed Since Purchase: ${numDays} days
+Customer Claim Reason Category: ${reason}
+Customer Actual Message: "${customerMessage}"
+
+EVALUATION RULES:
+1. Intent Classification:
+   - If customer's actual message is an unrelated question (e.g. trivia, general question like "what is the capital of India"), set intent = "INQUIRY", isEligible = false, autoRefundApproved = false, requiresHumanApproval = false. Answer their question courteously in the customerEmailDraft (e.g. "The capital of India is New Delhi...") while noting no refund is needed. In policyExplanation explain that the message is a general question and not an order damage claim.
+   - If the message describes actual damaged goods, defects, or return requests, evaluate against store policy.
+2. Standard Return Policy:
+   - Window: 30 days. Auto-Approval Threshold: <= $150.00.
+   - If amount > $150.00, set requiresHumanApproval = true and autoRefundApproved = false (must escalate to manager for review).
+   - If amount <= $150.00 and within 30 days with genuine damage/return, set autoRefundApproved = true.
+3. Write a personalized, context-specific customerEmailDraft addressing their EXACT message.`;
+
+  let decision;
+  try {
+    const completion = await callGroqWithFallback({
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ],
+      response_format: { type: 'json_object' },
+      temperature: 0.2,
+      max_tokens: 1500
+    });
+
+    decision = JSON.parse(completion.choices[0]?.message?.content || '{}');
+  } catch (err) {
+    logger.warn(`[Groq Refund Agent Fallback] ${err.message}`);
+    const isUnderThreshold = numAmount <= 150;
+    const isWithinWindow = numDays <= 30;
+    const autoApprove = isUnderThreshold && isWithinWindow;
+
+    decision = {
+      intent: reason.toLowerCase().includes('damage') ? 'DAMAGE_CLAIM' : 'REFUND_REQUEST',
+      isEligible: isWithinWindow || isUnderThreshold,
+      autoRefundApproved: autoApprove,
+      requiresHumanApproval: !autoApprove,
+      restockEligible: !reason.toLowerCase().includes('damage'),
+      confidenceScore: 0.90,
+      policyExplanation: autoApprove
+        ? `Order ($${numAmount.toFixed(2)}) is within the 30-day window (${numDays} days) and below the $150 auto-approval threshold.`
+        : `Claim ($${numAmount.toFixed(2)}, ${numDays} days elapsed) requires manager evaluation under safety guardrails.`,
+      recommendedAction: autoApprove ? 'AUTO_REFUND_RESTOCK' : 'ESCALATE_TO_MANAGER',
+      customerEmailDraft: `Dear ${customerName},\n\nThank you for reaching out regarding order #${orderNumber}. ${autoApprove ? `We have processed your refund of $${numAmount.toFixed(2)} in full.` : `Our operations management team is reviewing your request and will follow up within 24 hours.`}\n\nBest regards,\nCustomer Support Team`
+    };
+  }
+
+  const isAutoApproved = Boolean(decision.autoRefundApproved && numAmount <= 150 && !decision.requiresHumanApproval);
+  const status = isAutoApproved ? 'APPROVED' : 'PENDING_APPROVAL';
+
+  // 1. Create Refund Request Record
+  const refund = await RefundRequest.create({
+    orderNumber,
+    customerName,
+    customerEmail,
+    productId: product ? product.id : null,
+    amount: numAmount,
+    daysSincePurchase: numDays,
+    reason,
+    customerMessage,
+    status,
+    isAutoApproved,
+    requiresHumanReview: !isAutoApproved,
+    aiReasoning: decision.policyExplanation,
+    customerEmailDraft: decision.customerEmailDraft,
+    restockQuantity: decision.restockEligible ? 1 : 0
+  });
+
+  // 2. If Auto-Approved and Restock Eligible -> Update Inventory
+  if (isAutoApproved && decision.restockEligible && product) {
+    await product.increment('currentStock', { by: 1 });
+    await InventoryTransaction.create({
+      productId: product.id,
+      type: 'RESTOCK',
+      quantity: 1,
+      reason: `Customer Refund Auto-Restock (Order #${orderNumber})`,
+      performedBy: userId || null
+    });
+  }
+
+  // 3. Record Agent Audit Log
+  await AgentLog.create({
+    productId: product ? product.id : null,
+    action: 'GROQ_AI_REFUND_EVALUATION',
+    status: isAutoApproved ? 'AUTO_APPROVED' : 'PAUSED_FOR_APPROVAL',
+    message: `Groq AI processed refund for Order #${orderNumber} ($${numAmount.toFixed(2)}). Intent: ${decision.intent}. Decision: ${status}. Explanation: ${decision.policyExplanation}`
+  });
+
+  return {
+    success: true,
+    refundId: refund.id,
+    orderNumber,
+    status,
+    isAutoApproved,
+    requiresHumanReview: !isAutoApproved,
+    decision,
+    refund
+  };
+};
+
+/**
+ * =========================================================================
+ * AGENT 2: Autonomous Operations & Fraud Prevention AI Agent
+ * =========================================================================
+ * 4-Step Pipeline:
+ *  1. ROUTE: Inspects transaction, order velocity, item demand, customer metadata
+ *  2. REASON: Synthesizes risk factors (burst quantities, stock-draining, anomaly signals)
+ *  3. VERIFY: Computes Risk Score (0.00 to 1.00) & classifies risk tier
+ *  4. EXECUTE / PAUSE:
+ *     - Score < 0.70 -> Clears order for instant warehouse dispatch & fulfillment
+ *     - Score >= 0.70 -> Freezes transaction, flags for Human Manager review
+ */
+export const runFraudDetectionAgent = async ({
+  transactionId,
+  orderNumber,
+  customerName,
+  customerEmail,
+  productId,
+  quantity = 1,
+  totalAmount,
+  paymentMethod = 'CREDIT_CARD',
+  shippingCountry = 'US',
+  billingCountry = 'US',
+  ipAddress = '192.168.1.1',
+  userId
+}) => {
+  const product = productId ? await Product.findByPk(productId) : null;
+  const numQty = Number(quantity) || 1;
+  const numAmount = Number(totalAmount) || (product ? Number(product.unitCost) * numQty : 150.0);
+
+  // Check recent sales volume for anomaly detection
+  const recentProductSales = product
+    ? await InventoryTransaction.count({
+        where: {
+          productId: product.id,
+          type: 'SALE',
+          createdAt: { [Op.gte]: new Date(Date.now() - 24 * 60 * 60 * 1000) }
+        }
+      })
+    : 0;
+
+  const currentStock = product ? product.currentStock : 100;
+  const stockDrainRatio = currentStock > 0 ? (numQty / currentStock) : 1.0;
+
+  const systemPrompt = `You are StockPilot's Senior Autonomous Fraud Prevention & Risk Analyst AI Agent.
+Analyze the incoming order transaction for financial risk, identity mismatch, velocity anomalies, and stock-draining risks.
+You must respond with ONLY a valid JSON object matching this exact structure:
+{
+  "riskScore": number, // Float between 0.00 (safest) and 1.00 (highest risk)
+  "riskLevel": "LOW" | "MEDIUM" | "HIGH" | "CRITICAL",
+  "isHighRisk": boolean,
+  "shouldFreezeOrder": boolean,
+  "riskFactors": ["string"],
+  "analystSummary": "string",
+  "recommendedAction": "APPROVE_DISPATCH" | "FREEZE_AND_ALERT_MANAGER" | "CANCEL_AND_BLACKLIST"
+}`;
+
+  const userPrompt = `Analyze transaction risk:
+Order Number: ${orderNumber || `ORD-${Date.now()}`}
+Customer: ${customerName} (${customerEmail})
+Product: ${product ? `${product.name} (Current Stock: ${currentStock}, SKU: ${product.sku})` : 'Catalog Product'}
+Quantity Requested: ${numQty} units
+Stock Drain Percentage: ${(stockDrainRatio * 100).toFixed(1)}% of available stock
+Total Order Amount: $${numAmount.toFixed(2)}
+Payment Method: ${paymentMethod}
+Shipping Country: ${shippingCountry} | Billing Country: ${billingCountry}
+24-Hour Velocity on Item: ${recentProductSales} orders
+
+EVALUATION CRITERIA:
+1. Quantity Spike: If order requests > 30 units or > 60% of total warehouse stock, assign elevated risk score (+0.35 to +0.50).
+2. Location Mismatch: If Billing Country !== Shipping Country, assign additional risk factor (+0.25).
+3. Extreme Transaction Value: Orders > $2,500 by new/unverified accounts warrant verification (+0.30).
+4. Normal orders (reasonable quantity, matching address, standard value) should receive risk score < 0.30.
+5. If riskScore >= 0.70, set shouldFreezeOrder = true and isHighRisk = true. Otherwise false.`;
+
+  let decision;
+  try {
+    const completion = await callGroqWithFallback({
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ],
+      response_format: { type: 'json_object' },
+      temperature: 0.2,
+      max_tokens: 1500
+    });
+
+    decision = JSON.parse(completion.choices[0]?.message?.content || '{}');
+  } catch (err) {
+    logger.warn(`[Groq Fraud Agent Fallback] ${err.message}`);
+    const isQuantitySpike = numQty >= 40 || stockDrainRatio >= 0.6;
+    const isGeoMismatch = shippingCountry !== billingCountry;
+    const isHighValue = numAmount >= 2500;
+
+    let score = 0.15;
+    const factors = [];
+    if (isQuantitySpike) {
+      score += 0.40;
+      factors.push(`Abnormal order volume (${numQty} units, ${(stockDrainRatio * 100).toFixed(0)}% of stock).`);
+    }
+    if (isGeoMismatch) {
+      score += 0.25;
+      factors.push(`Cross-border mismatch: Billing (${billingCountry}) differs from Shipping (${shippingCountry}).`);
+    }
+    if (isHighValue) {
+      score += 0.20;
+      factors.push(`High single-transaction capital exposure ($${numAmount.toFixed(2)}).`);
+    }
+
+    const finalScore = Math.min(0.99, Number(score.toFixed(2)));
+    const isHighRisk = finalScore >= 0.70;
+
+    decision = {
+      riskScore: finalScore,
+      riskLevel: finalScore >= 0.85 ? 'CRITICAL' : finalScore >= 0.70 ? 'HIGH' : finalScore >= 0.40 ? 'MEDIUM' : 'LOW',
+      isHighRisk,
+      shouldFreezeOrder: isHighRisk,
+      riskFactors: factors.length > 0 ? factors : ['Standard customer transaction profile.'],
+      analystSummary: isHighRisk
+        ? `Order flagged with risk score ${finalScore}. Multiple compounding anomaly signals detected.`
+        : `Order verified with safe risk score ${finalScore}. Passed all autonomous safety checks.`,
+      recommendedAction: isHighRisk ? 'FREEZE_AND_ALERT_MANAGER' : 'APPROVE_DISPATCH'
+    };
+  }
+
+  const riskScore = Number(decision.riskScore) || 0.1;
+  const isFrozen = Boolean(decision.shouldFreezeOrder || riskScore >= 0.70);
+  const status = isFrozen ? 'PENDING_REVIEW' : 'CLEARED_RELEASED';
+
+  // 1. Create Fraud Alert Record
+  const alert = await FraudAlert.create({
+    orderNumber: orderNumber || `ORD-${Date.now()}`,
+    customerName,
+    customerEmail,
+    productId: product ? product.id : null,
+    quantity: numQty,
+    totalAmount: numAmount,
+    riskScore,
+    riskLevel: decision.riskLevel || (riskScore >= 0.70 ? 'HIGH' : 'LOW'),
+    riskFactors: decision.riskFactors || [],
+    aiExplanation: decision.analystSummary,
+    status,
+    isFrozen
+  });
+
+  // 2. Record Agent Audit Log
+  await AgentLog.create({
+    productId: product ? product.id : null,
+    action: 'GROQ_AI_FRAUD_INSPECTION',
+    status: isFrozen ? 'FROZEN_HIGH_RISK' : 'CLEARED_SAFE',
+    message: `Groq AI inspected Order #${alert.orderNumber} ($${numAmount.toFixed(2)}). Risk Score: ${riskScore} (${decision.riskLevel}). Status: ${status}. Summary: ${decision.analystSummary}`
+  });
+
+  return {
+    success: true,
+    alertId: alert.id,
+    orderNumber: alert.orderNumber,
+    riskScore,
+    riskLevel: alert.riskLevel,
+    isFrozen,
+    status,
+    decision,
+    alert
+  };
+};
+
+/**
+ * =========================================================================
+ * AGENT 3: Autonomous Restock & Procurement Agent
+ * =========================================================================
+ * Multi-factor demand forecasting, burn rate calculation, and PO dispatch.
  */
 export const runRestockProcurementAgent = async ({ productId, userId }) => {
   const product = await Product.findByPk(productId);
@@ -20,7 +388,6 @@ export const runRestockProcurementAgent = async ({ productId, userId }) => {
     throw new Error(`Product with ID ${productId} not found.`);
   }
 
-  // Normal healthy stock check
   if (product.currentStock >= product.safetyThreshold) {
     return {
       status: 'no_action_needed',
@@ -32,7 +399,6 @@ export const runRestockProcurementAgent = async ({ productId, userId }) => {
     };
   }
 
-  // Duplicate active restock check
   const existingActive = await RestockRequest.findOne({
     where: {
       productId,
@@ -51,7 +417,6 @@ export const runRestockProcurementAgent = async ({ productId, userId }) => {
     };
   }
 
-  // Pull last 30 days of sales transactions
   const recentSales = await InventoryTransaction.findAll({
     where: { productId, type: 'SALE' },
     limit: 20,
@@ -62,7 +427,6 @@ export const runRestockProcurementAgent = async ({ productId, userId }) => {
   const baselineReorderQty = Math.max(1, product.targetStock - product.currentStock);
   const baselineCost = baselineReorderQty * Number(product.unitCost);
 
-  // Prompt Groq LLaMA 3.3 with JSON schema instructions
   const systemPrompt = `You are StockPilot's Senior Autonomous Supply Chain & Procurement AI Agent.
 Analyze the product inventory state and sales velocity to determine the optimal restock decision.
 You must respond with ONLY a valid JSON object matching this exact structure:
@@ -95,20 +459,19 @@ Guidelines:
 
   let decision;
   try {
-    const completion = await groq.chat.completions.create({
-      model: 'llama-3.3-70b-versatile',
+    const completion = await callGroqWithFallback({
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt }
       ],
       response_format: { type: 'json_object' },
       temperature: 0.2,
-      max_tokens: 800
+      max_tokens: 1500
     });
 
     decision = JSON.parse(completion.choices[0]?.message?.content || '{}');
   } catch (err) {
-    logger.warn(`[Groq AI Agent Warning] ${err.message}. Using intelligent deterministic fallback.`);
+    logger.warn(`[Groq AI Agent Warning] ${err.message}. Using deterministic fallback.`);
     const burnRate = recentSales.length > 0 ? (totalSalesUnits / Math.max(1, recentSales.length * 1.5)) : 1.0;
     const stockoutDays = product.currentStock > 0 ? (product.currentStock / Math.max(0.1, burnRate)) : 0;
     
@@ -129,7 +492,6 @@ Guidelines:
   const threadId = `groq-procure-${productId}-${Date.now()}`;
   const requiresApproval = Boolean(decision.requiresHumanApproval || decision.totalCost > 1000);
 
-  // 1. Create Restock Request record
   const restockReq = await RestockRequest.create({
     productId: product.id,
     quantity: decision.recommendedQuantity,
@@ -139,7 +501,6 @@ Guidelines:
     createdBy: userId
   });
 
-  // 2. Branch: Human Review vs Immediate Auto-Dispatch
   if (requiresApproval) {
     await ApprovalsQueue.create({
       restockRequestId: restockReq.id,
@@ -181,7 +542,6 @@ Guidelines:
       }
     };
   } else {
-    // Auto-Approve & Dispatch PO
     const po = await PurchaseOrder.create({
       restockRequestId: restockReq.id,
       productId: product.id,
@@ -194,7 +554,6 @@ Guidelines:
       status: 'SENT'
     });
 
-    // Send notifications
     sendPurchaseOrderEmail({
       supplierEmail: product.supplierEmail,
       supplierName: product.supplierName,
@@ -237,11 +596,12 @@ Guidelines:
 };
 
 /**
- * AGENT 2: Interactive Dashboard & Chat Analytics AI Agent
+ * =========================================================================
+ * AGENT 4: Interactive Dashboard & Chat Analytics AI Agent
+ * =========================================================================
  * Analyzes live database tables and answers questions in natural language.
  */
 export const runInventoryAnalyticsAgent = async ({ query, userId }) => {
-  // Aggregate real-time inventory metrics from SQL database
   const products = await Product.findAll({ order: [['currentStock', 'ASC']] });
   const lowStockProducts = products.filter(p => p.currentStock <= p.safetyThreshold);
   
@@ -252,7 +612,6 @@ export const runInventoryAnalyticsAgent = async ({ query, userId }) => {
     include: [{ model: Product, as: 'product', attributes: ['name', 'sku'] }]
   });
 
-  // Calculate top selling product velocity
   const salesByProduct = {};
   for (const s of recentSales) {
     const pName = s.product?.name || `Product #${s.productId}`;
@@ -270,6 +629,8 @@ export const runInventoryAnalyticsAgent = async ({ query, userId }) => {
   );
 
   const pendingApprovalsCount = await ApprovalsQueue.count({ where: { status: 'PENDING' } });
+  const pendingRefundsCount = await RefundRequest.count({ where: { status: 'PENDING_APPROVAL' } });
+  const pendingFraudCount = await FraudAlert.count({ where: { status: 'PENDING_REVIEW' } });
 
   const contextData = {
     totalProductsCount: products.length,
@@ -277,7 +638,9 @@ export const runInventoryAnalyticsAgent = async ({ query, userId }) => {
     lowStockItems: lowStockProducts.map(p => `${p.name} (Current: ${p.currentStock}, Safety: ${p.safetyThreshold})`),
     topFastestMovingProducts: topSellingList.length > 0 ? topSellingList : ['No recent sales recorded yet'],
     totalInventoryValuation: `$${totalInventoryValuation.toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
-    pendingHumanApprovals: pendingApprovalsCount,
+    pendingRestockApprovals: pendingApprovalsCount,
+    pendingRefundApprovals: pendingRefundsCount,
+    pendingFraudReviews: pendingFraudCount,
     allProductList: products.map(p => ({
       name: p.name,
       sku: p.sku,
@@ -288,8 +651,8 @@ export const runInventoryAnalyticsAgent = async ({ query, userId }) => {
     }))
   };
 
-  const systemPrompt = `You are StockPilot's Executive Inventory Analytics AI Assistant.
-You have live, direct access to the company's real-time inventory and sales database.
+  const systemPrompt = `You are StockPilot's Executive Inventory & Operations Analytics AI Assistant.
+You have live, direct access to the company's real-time inventory, sales, fraud, and refund database.
 Answer the user's question accurately, concisely, and with actionable data-driven supply chain advice.
 Use clean markdown bullet points, bold highlights, and clear figures.
 
@@ -298,18 +661,19 @@ LIVE DATABASE SNAPSHOT:
 - Low Stock Alert Count: ${contextData.lowStockCount} (${contextData.lowStockItems.join(', ') || 'All stock healthy'})
 - Top Fastest Moving Products: ${contextData.topFastestMovingProducts.join(', ')}
 - Total Inventory Capital Valuation: ${contextData.totalInventoryValuation}
-- Pending Human Approvals (> $1000): ${contextData.pendingHumanApprovals}
+- Pending Restock Approvals (> $1000): ${contextData.pendingRestockApprovals}
+- Pending Refund Approvals (> $150): ${contextData.pendingRefundApprovals}
+- Flagged High-Risk Orders Awaiting Review: ${contextData.pendingFraudReviews}
 - Product Catalog Details: ${JSON.stringify(contextData.allProductList)}`;
 
   try {
-    const completion = await groq.chat.completions.create({
-      model: 'llama-3.3-70b-versatile',
+    const completion = await callGroqWithFallback({
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: query }
       ],
       temperature: 0.3,
-      max_tokens: 600
+      max_tokens: 1500
     });
 
     const answer = completion.choices[0]?.message?.content || 'Unable to analyze inventory data at this time.';
@@ -322,18 +686,19 @@ LIVE DATABASE SNAPSHOT:
         lowStockCount: contextData.lowStockCount,
         fastestMoving: contextData.topFastestMovingProducts[0] || 'N/A',
         valuation: contextData.totalInventoryValuation,
-        pendingApprovals: contextData.pendingHumanApprovals
+        pendingApprovals: contextData.pendingRestockApprovals,
+        pendingRefunds: contextData.pendingRefundApprovals,
+        pendingFraud: contextData.pendingFraudReviews
       }
     };
   } catch (err) {
     logger.error(`[Groq Analytics Error] ${err.message}`);
     
-    // Resilient rule-based fallback response
-    let fallbackAnswer = `### 📊 Live Inventory Analysis Summary\n\n`;
+    let fallbackAnswer = `### 📊 Live Operations & Inventory Analysis\n\n`;
     fallbackAnswer += `* **Fastest Moving Products**: ${contextData.topFastestMovingProducts.join(', ')}\n`;
     fallbackAnswer += `* **Low Stock Items Requiring Attention**: ${contextData.lowStockCount > 0 ? contextData.lowStockItems.join(', ') : 'All products currently healthy'}\n`;
     fallbackAnswer += `* **Total Inventory Valuation**: ${contextData.totalInventoryValuation}\n`;
-    fallbackAnswer += `* **Pending Human Approvals**: ${contextData.pendingHumanApprovals} order(s)\n`;
+    fallbackAnswer += `* **Pending Human Approvals**: ${contextData.pendingRestockApprovals} restock order(s), ${contextData.pendingRefundApprovals} refund(s), ${contextData.pendingFraudReviews} fraud alert(s)\n`;
 
     return {
       success: true,
@@ -343,8 +708,314 @@ LIVE DATABASE SNAPSHOT:
         lowStockCount: contextData.lowStockCount,
         fastestMoving: contextData.topFastestMovingProducts[0] || 'N/A',
         valuation: contextData.totalInventoryValuation,
-        pendingApprovals: contextData.pendingHumanApprovals
+        pendingApprovals: contextData.pendingRestockApprovals,
+        pendingRefunds: contextData.pendingRefundApprovals,
+        pendingFraud: contextData.pendingFraudReviews
       }
     };
   }
 };
+
+/**
+ * =========================================================================
+ * AGENT 5: Autonomous Vendor Selection & Supplier Intelligence AI Agent
+ * =========================================================================
+ * Multi-Criteria Decision Analysis (MCDA) across Price, Warranty, Quality, Lead Time, and Reliability.
+ */
+export const runVendorEvaluationAgent = async ({
+  title = 'Multi-Vendor Supplier Comparison',
+  productCategory = 'General Catalog',
+  targetQuantity = 100,
+  priorityFocus = 'BALANCED',
+  vendorProposals = [],
+  documentSnippets = [],
+  uploadedFiles = [],
+  userId,
+  senderName = 'Procurement Specialist',
+  senderRole = 'MANAGER',
+  senderEmail = 'procurement@stockpilot.com'
+}) => {
+  const hasProposals = Array.isArray(vendorProposals) && vendorProposals.length >= 2;
+  const hasDocuments = Array.isArray(documentSnippets) && documentSnippets.length >= 2;
+
+  if (!hasProposals && !hasDocuments && (vendorProposals.length + documentSnippets.length) < 2) {
+    throw new Error('At least 2 vendor proposals or uploaded quote documents are required for multi-vendor comparison.');
+  }
+
+  const systemPrompt = `You are StockPilot's Chief Procurement Officer & Supplier Intelligence AI Agent.
+Evaluate and compare multiple vendor proposals, contract terms, warranties, quality standards, and pricing structures.
+Extract vendor contact information (email, phone) and commercial details directly from raw document text.
+
+You must respond with ONLY a valid JSON object matching this exact structure:
+{
+  "bestVendorName": "string",
+  "bestVendorEmail": "string",
+  "bestVendorPhone": "string",
+  "overallRecommendationScore": number, // 0 to 100
+  "extractedVendors": [
+    {
+      "vendorName": "string",
+      "vendorEmail": "string",
+      "vendorPhone": "string",
+      "unitPrice": number,
+      "warrantyMonths": number,
+      "leadTimeDays": number,
+      "qualityGrade": "string",
+      "defectRatePct": "string",
+      "paymentTerms": "string",
+      "notes": "string"
+    }
+  ],
+  "scoringMatrix": [
+    {
+      "vendorName": "string",
+      "vendorEmail": "string",
+      "vendorPhone": "string",
+      "priceScore": number, // 0-100
+      "qualityScore": number, // 0-100
+      "warrantyScore": number, // 0-100
+      "leadTimeScore": number, // 0-100
+      "compositeScore": number, // 0-100
+      "pros": ["string"],
+      "cons": ["string"],
+      "estimatedTotalContractCost": number
+    }
+  ],
+  "executiveSummary": "string", // Multi-paragraph detailed analysis explaining why the winner was chosen
+  "keyTradeoffs": [
+    {
+      "comparison": "string",
+      "analysis": "string"
+    }
+  ],
+  "riskAnalysis": "string", // Hidden traps, MOQ constraints, SLA risks
+  "negotiationStrategy": "string", // Actionable counter-offer advice to extract better pricing or terms
+  "emailSubject": "string", // Subject line for procurement email
+  "emailDraft": "string", // Formal procurement email to the chosen vendor signed by ${senderName} (${senderRole}) without any phone number
+  "smsDraft": "string" // Natural, polite, human-written business SMS (e.g. 'Hi [Vendor Name] team, this is ${senderName} from StockPilot. We have approved your quotation for ${targetQuantity} units of ${title}. Please reply with your pro-forma invoice to confirm the order. Thank you!')
+}`;
+
+  const userPrompt = `Compare and evaluate vendor proposals for procurement:
+Procurement Title: ${title}
+Product Category: ${productCategory}
+Target Volume: ${targetQuantity} units
+Strategic Priority Focus: ${priorityFocus} (options: BALANCED, LOWEST_PRICE, HIGHEST_QUALITY, LONGEST_WARRANTY, FASTEST_LEAD_TIME)
+Sender / Logged-in User: ${senderName} (${senderRole}) <${senderEmail}>
+
+${vendorProposals.length > 0 ? `SUBMITTED VENDOR PROPOSALS & CONTRACT DETAILS:\n${JSON.stringify(vendorProposals, null, 2)}` : 'No manual form inputs provided. Extract all vendor proposals and contact info directly from the attached documents below.'}
+
+ATTACHED VENDOR DOCUMENTS, QUOTATION SHEETS & WARRANTY CONTRACTS:
+${documentSnippets.length > 0 ? documentSnippets.join('\n\n====================\n\n') : 'No additional raw document text provided.'}
+
+EVALUATION & DISPATCH INSTRUCTIONS:
+1. Parse every distinct vendor quote and extract their official contact email address and phone number.
+2. Rank all vendors from highest composite score to lowest in the "scoringMatrix" according to ${priorityFocus}.
+3. EMAIL SIGNATURE RULE: Sign the email using ONLY the logged-in user's details:
+   Best regards,
+   ${senderName}
+   ${senderRole} | StockPilot Sourcing
+   ${senderEmail}
+   CRITICAL: DO NOT include any phone number in the email. DO NOT use placeholders like [Your Name], [Phone], [Email].
+4. SMS DRAFT RULE: Write a warm, courteous, and completely natural human-written SMS text that any vendor can instantly understand (e.g. "Hi [Vendor Name] team, this is ${senderName} from StockPilot. We have approved your quotation for ${targetQuantity} units of ${title}. Please reply with your pro-forma invoice to confirm the order. Thank you!"). DO NOT use robotic shorthand like 'awarded 500x' or 'check your email'.`;
+
+  let decision;
+  try {
+    const completion = await callGroqWithFallback({
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ],
+      response_format: { type: 'json_object' },
+      temperature: 0.2,
+      max_tokens: 4000
+    });
+
+    decision = JSON.parse(completion.choices[0]?.message?.content || '{}');
+  } catch (err) {
+    logger.warn(`[Groq Vendor Agent Warning] ${err.message}. Using intelligent analytical fallback.`);
+    
+    // Parse proposal candidates from documentSnippets if manual forms are empty
+    let effectiveProposals = Array.isArray(vendorProposals) && vendorProposals.length > 0 ? [...vendorProposals] : [];
+    if (effectiveProposals.length === 0 && Array.isArray(documentSnippets) && documentSnippets.length > 0) {
+      effectiveProposals = documentSnippets.map((snippet, idx) => {
+        const nameMatch = snippet.match(/SUPPLIER NAME:\s*([^\n\r]+)/i) || snippet.match(/ISSUING ENTITY:\s*([^\n\r]+)/i);
+        const emailMatch = snippet.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/i);
+        const phoneMatch = snippet.match(/(?:Tel|Phone|WhatsApp|Line|Secure Line)[\s:]*([+\d\s()-]{8,20})/i);
+        const priceMatch = snippet.match(/Unit Price[^\$]*\$([0-9.]+)/i) || snippet.match(/Unit Quote[^\$]*\$([0-9.]+)/i) || snippet.match(/\$([0-9.]+)\s*USD/i);
+        const warrantyMatch = snippet.match(/([0-9]+)\s*Months/i);
+        const leadTimeMatch = snippet.match(/([0-9]+)\s*Business Days/i) || snippet.match(/([0-9]+)\s*Days/i);
+        const gradeMatch = snippet.match(/Quality Certification & Grade\s*([^\n\r]+)/i) || snippet.match(/Quality Grade[^\n\r]*\s*([^\n\r]+)/i);
+        const defectMatch = snippet.match(/([0-9.]+)%\s*(?:\(Verified|threshold|tolerance)?/i);
+        const paymentMatch = snippet.match(/Commercial Payment Terms\s*([^\n\r]+)/i);
+
+        return {
+          vendorName: nameMatch ? nameMatch[1].trim() : `Supplier Proposal #${idx + 1}`,
+          vendorEmail: emailMatch ? emailMatch[1].trim() : `sales@supplier${idx + 1}.com`,
+          vendorPhone: phoneMatch ? phoneMatch[1].trim() : `+1 555 010${idx + 1}`,
+          unitPrice: priceMatch ? parseFloat(priceMatch[1]) : (35 + idx * 4),
+          warrantyMonths: warrantyMatch ? parseInt(warrantyMatch[1]) : 12,
+          leadTimeDays: leadTimeMatch ? parseInt(leadTimeMatch[1]) : 14,
+          qualityGrade: gradeMatch ? gradeMatch[1].trim() : 'Commercial Grade A',
+          defectRatePct: defectMatch ? `${defectMatch[1]}%` : '1.0%',
+          paymentTerms: paymentMatch ? paymentMatch[1].trim() : 'Net 30 Days',
+          notes: ''
+        };
+      });
+    }
+
+    if (effectiveProposals.length === 0) {
+      effectiveProposals = [
+        { vendorName: 'Apex Component Dynamics', vendorEmail: 'sales@apexcomponents.co.uk', vendorPhone: '+44 20 7946 0912', unitPrice: 42.5, warrantyMonths: 24, leadTimeDays: 10, qualityGrade: 'Grade A+' },
+        { vendorName: 'Global Sourcing Inc.', vendorEmail: 'quotes@globalsourcing.com', vendorPhone: '+1 214 555 0199', unitPrice: 31.5, warrantyMonths: 6, leadTimeDays: 28, qualityGrade: 'Grade C' }
+      ];
+    }
+
+    // Dynamic Multi-Criteria Weights based on Strategic Priority
+    let wPrice = 0.30, wWarranty = 0.25, wQuality = 0.25, wLeadTime = 0.20;
+    if (priorityFocus === 'LOWEST_PRICE') {
+      wPrice = 0.60; wWarranty = 0.15; wQuality = 0.15; wLeadTime = 0.10;
+    } else if (priorityFocus === 'LONGEST_WARRANTY') {
+      wWarranty = 0.55; wPrice = 0.20; wQuality = 0.15; wLeadTime = 0.10;
+    } else if (priorityFocus === 'HIGHEST_QUALITY') {
+      wQuality = 0.55; wWarranty = 0.20; wPrice = 0.15; wLeadTime = 0.10;
+    } else if (priorityFocus === 'FASTEST_LEAD_TIME') {
+      wLeadTime = 0.55; wPrice = 0.20; wWarranty = 0.15; wQuality = 0.10;
+    }
+
+    const minPrice = Math.min(...effectiveProposals.map(p => Number(p.unitPrice) || 50));
+    const maxWarranty = Math.max(...effectiveProposals.map(p => Number(p.warrantyMonths) || 12));
+    const minLead = Math.min(...effectiveProposals.map(p => Number(p.leadTimeDays) || 14));
+
+    const scored = effectiveProposals.map((v, idx) => {
+      const price = Number(v.unitPrice) || 50;
+      const warranty = Number(v.warrantyMonths) || 12;
+      const leadTime = Number(v.leadTimeDays) || 14;
+      const totalCost = price * Number(targetQuantity);
+
+      const priceScore = Math.max(20, Math.min(100, Math.round((minPrice / Math.max(1, price)) * 100)));
+      const qualityScore = (v.qualityGrade?.toLowerCase().includes('a++') || v.qualityGrade?.toLowerCase().includes('tuv') || v.qualityGrade?.toLowerCase().includes('military')) ? 98 :
+                           (v.qualityGrade?.toLowerCase().includes('a+') || v.qualityGrade?.toLowerCase().includes('iso')) ? 90 :
+                           (v.qualityGrade?.toLowerCase().includes('grade a') || v.qualityGrade?.toLowerCase().includes('rohs')) ? 82 : 65;
+      const warrantyScore = Math.max(20, Math.min(100, Math.round((warranty / Math.max(1, maxWarranty)) * 100)));
+      const leadTimeScore = Math.max(20, Math.min(100, Math.round((minLead / Math.max(1, leadTime)) * 100)));
+      
+      const composite = Math.round((priceScore * wPrice) + (qualityScore * wQuality) + (warrantyScore * wWarranty) + (leadTimeScore * wLeadTime));
+
+      return {
+        vendorName: v.vendorName || `Vendor #${idx + 1}`,
+        vendorEmail: v.vendorEmail || `sales@vendor${idx + 1}.com`,
+        vendorPhone: v.vendorPhone || `+1 555 010${idx + 1}`,
+        priceScore,
+        qualityScore,
+        warrantyScore,
+        leadTimeScore,
+        compositeScore: composite,
+        pros: [
+          `Unit quote of $${price.toFixed(2)} ($${totalCost.toLocaleString()} total contract)`,
+          `${warranty} months warranty protection (${(warranty/12).toFixed(1)} yrs)`,
+          `${leadTime} days production turnaround`
+        ],
+        cons: [
+          defectScore(v.defectRatePct),
+          price > (minPrice * 1.25) ? 'Higher unit investment' : 'Standard commercial terms'
+        ],
+        estimatedTotalContractCost: totalCost
+      };
+    });
+
+    function defectScore(rate) {
+      if (!rate) return 'Standard defect margin';
+      const num = parseFloat(rate);
+      return num > 1.5 ? `Elevated defect tolerance (${rate})` : `Strict defect SLA (${rate})`;
+    }
+
+    scored.sort((a, b) => b.compositeScore - a.compositeScore);
+    const winner = scored[0];
+
+    decision = {
+      bestVendorName: winner.vendorName,
+      bestVendorEmail: winner.vendorEmail || 'sales@vendor.com',
+      bestVendorPhone: winner.vendorPhone || '+1 555 0199',
+      overallRecommendationScore: winner.compositeScore,
+      scoringMatrix: scored,
+      executiveSummary: `Based on Multi-Criteria Decision Analysis evaluating ${effectiveProposals.length} suppliers for ${targetQuantity} units of ${title} with strategic priority "${priorityFocus}", **${winner.vendorName}** emerges as the premier procurement partner with a top composite score of ${winner.compositeScore}/100. They provide the most favorable alignment across pricing, warranty duration, quality certifications, and delivery SLAs.`,
+      keyTradeoffs: [
+        {
+          comparison: `${scored[0]?.vendorName} vs ${scored[1]?.vendorName || 'Competitors'}`,
+          analysis: `Selecting ${scored[0]?.vendorName} achieves optimal risk-adjusted returns by balancing contractual protection against upfront unit investment.`
+        }
+      ],
+      riskAnalysis: 'Key risks include confirming sample verification batches and ensuring defect replacement timelines are strictly codified into the final binding purchase contract.',
+      negotiationStrategy: `Leverage your ${targetQuantity}-unit volume commitment to request an additional 3-5% volume discount or Net 45/60 payment terms.`,
+      emailSubject: `Award Notification – ${winner.vendorName} for ${title}`,
+      emailDraft: `Dear ${winner.vendorName} Sales & Contracts Team,\n\nWe are pleased to inform you that your quotation for ${title} (${targetQuantity} units) has been selected as our winning proposal.\n\nPlease reply with your formal Pro-Forma Invoice, final Master Service Agreement (MSA), and banking details for deposit processing.\n\nBest regards,\n${senderName}\n${senderRole} | StockPilot Sourcing\n${senderEmail}`,
+      smsDraft: `Hi ${winner.vendorName} team, this is ${senderName} from StockPilot. We have approved your quotation for ${targetQuantity} units of ${title}. Please reply with your pro-forma invoice to confirm the order. Thank you!`
+    };
+  }
+
+  // Sanitize emailDraft to guarantee no phone numbers and replace any lingering placeholders
+  if (decision.emailDraft) {
+    let cleanedEmail = decision.emailDraft
+      .replace(/\[Your Name\]/gi, senderName)
+      .replace(/\[Name\]/gi, senderName)
+      .replace(/\[Email\]/gi, senderEmail)
+      .replace(/\[Phone\]/gi, '')
+      .replace(/(?:Phone|Tel|Mobile|WhatsApp)[\s:]*\[?[+\d\s()-]+\]?/gi, '')
+      .replace(/\n\s*\n\s*\n/g, '\n\n')
+      .trim();
+
+    // Ensure proper user sign-off if AI truncated signature
+    if (!cleanedEmail.includes(senderName)) {
+      cleanedEmail += `\n\nBest regards,\n${senderName}\n${senderRole} | StockPilot Sourcing\n${senderEmail}`;
+    }
+
+    decision.emailDraft = cleanedEmail;
+  }
+
+  // Sanitize smsDraft to guarantee human, courteous, natural messaging
+  if (decision.smsDraft) {
+    let cleanSms = decision.smsDraft;
+    if (
+      cleanSms.toLowerCase().includes('check your email') ||
+      cleanSms.toLowerCase().includes('check email') ||
+      cleanSms.startsWith('StockPilot:') ||
+      cleanSms.includes('awarded')
+    ) {
+      cleanSms = `Hi ${decision.bestVendorName} team, this is ${senderName} from StockPilot. We have approved your quotation for ${targetQuantity} units of ${title}. Please reply with your pro-forma invoice to confirm the order. Thank you!`;
+    }
+    decision.smsDraft = cleanSms;
+  }
+
+  // Save to database
+  const evaluation = await VendorEvaluation.create({
+    title,
+    productCategory,
+    targetQuantity: Number(targetQuantity),
+    priorityFocus,
+    vendorProposals,
+    bestVendorName: decision.bestVendorName,
+    overallRecommendationScore: decision.overallRecommendationScore,
+    scoringMatrix: decision.scoringMatrix || [],
+    executiveSummary: decision.executiveSummary,
+    keyTradeoffs: decision.keyTradeoffs || [],
+    negotiationStrategy: decision.negotiationStrategy,
+    emailDraft: decision.emailDraft,
+    uploadedFiles,
+    evaluatedBy: userId || null
+  });
+
+  // Log action
+  await AgentLog.create({
+    action: 'GROQ_AI_VENDOR_EVALUATION',
+    status: 'EVALUATION_COMPLETED',
+    message: `Groq AI evaluated ${vendorProposals.length} vendor proposals for '${title}'. Winner: ${decision.bestVendorName} (Score: ${decision.overallRecommendationScore}/100). Strategic Priority: ${priorityFocus}.`
+  });
+
+  return {
+    success: true,
+    evaluationId: evaluation.id,
+    decision,
+    evaluation
+  };
+};
+

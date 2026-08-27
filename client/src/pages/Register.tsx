@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useAppDispatch } from '../store/index.ts';
-import { setCredentials } from '../store/slices/authSlice.ts';
+import { useAppDispatch } from '../store/index.js';
+import { setCredentials } from '../store/slices/authSlice.js';
 import api from '../services/api.ts';
 import { UserRole } from '../types/index.ts';
 import { Cpu, Lock, Mail, User as UserIcon, AlertCircle } from 'lucide-react';

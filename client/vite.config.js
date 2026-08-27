@@ -7,12 +7,19 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': {
-        target: 'https://week7-rwe2.onrender.com',
+        target: 'http://localhost:5000',
         changeOrigin: true,
-        secure: false
+        secure: false,
+        ws: true
+      },
+      '/socket.io': {
+        target: 'http://localhost:5000',
+        changeOrigin: true,
+        secure: false,
+        ws: true
       },
       '/uploads': {
-        target: 'https://week7-rwe2.onrender.com',
+        target: 'http://localhost:5000',
         changeOrigin: true,
         secure: false
       }

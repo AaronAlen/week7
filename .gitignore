@@ -19,6 +19,10 @@ client/dist/
 server/dist/
 /.vite
 
+# Uploaded runtime files
+server/uploads/*
+!server/uploads/.gitkeep
+
 # Logs
 logs/
 *.log

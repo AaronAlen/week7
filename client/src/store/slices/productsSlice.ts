@@ -1,13 +1,28 @@
 import { createSlice, PayloadAction } from '@reduxjs/toolkit';
-import { Product } from '../../types/index.ts';
 
-interface ProductsState {
-  items: Product[];
-  selectedProduct: Product | null;
+export interface ProductItem {
+  id: number;
+  name: string;
+  sku: string;
+  description?: string;
+  image?: string;
+  currentStock: number;
+  safetyThreshold: number;
+  targetStock: number;
+  unitCost: number;
+  supplierName: string;
+  supplierEmail: string;
+  supplierPhone?: string;
+  stockStatus: 'IN_STOCK' | 'LOW_STOCK' | 'OUT_OF_STOCK';
+}
+
+export interface ProductsState {
+  items: ProductItem[];
+  selectedProduct: ProductItem | null;
   loading: boolean;
   error: string | null;
   searchQuery: string;
-  stockFilter: 'all' | 'low' | 'healthy';
+  stockFilter: string;
 }
 
 const initialState: ProductsState = {
@@ -23,18 +38,18 @@ export const productsSlice = createSlice({
   name: 'products',
   initialState,
   reducers: {
-    setProducts: (state, action: PayloadAction<Product[]>) => {
+    setProducts: (state, action: PayloadAction<ProductItem[]>) => {
       state.items = action.payload;
       state.loading = false;
       state.error = null;
     },
-    setSelectedProduct: (state, action: PayloadAction<Product | null>) => {
+    setSelectedProduct: (state, action: PayloadAction<ProductItem | null>) => {
       state.selectedProduct = action.payload;
     },
-    addProduct: (state, action: PayloadAction<Product>) => {
+    addProduct: (state, action: PayloadAction<ProductItem>) => {
       state.items.unshift(action.payload);
     },
-    updateProductInList: (state, action: PayloadAction<Product>) => {
+    updateProductInList: (state, action: PayloadAction<ProductItem>) => {
       const idx = state.items.findIndex(p => p.id === action.payload.id);
       if (idx !== -1) {
         state.items[idx] = action.payload;
@@ -59,7 +74,7 @@ export const productsSlice = createSlice({
     setSearchQuery: (state, action: PayloadAction<string>) => {
       state.searchQuery = action.payload;
     },
-    setStockFilter: (state, action: PayloadAction<'all' | 'low' | 'healthy'>) => {
+    setStockFilter: (state, action: PayloadAction<string>) => {
       state.stockFilter = action.payload;
     }
   }
