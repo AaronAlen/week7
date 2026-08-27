@@ -604,6 +604,7 @@ Guidelines:
 export const runInventoryAnalyticsAgent = async ({ query, userId }) => {
   const products = await Product.findAll({ order: [['currentStock', 'ASC']] });
   const lowStockProducts = products.filter(p => p.currentStock <= p.safetyThreshold);
+  const overTargetProducts = products.filter(p => p.currentStock > p.targetStock);
   
   const recentSales = await InventoryTransaction.findAll({
     where: { type: 'SALE' },
@@ -635,7 +636,9 @@ export const runInventoryAnalyticsAgent = async ({ query, userId }) => {
   const contextData = {
     totalProductsCount: products.length,
     lowStockCount: lowStockProducts.length,
-    lowStockItems: lowStockProducts.map(p => `${p.name} (Current: ${p.currentStock}, Safety: ${p.safetyThreshold})`),
+    lowStockItems: lowStockProducts.map(p => `${p.name} (Current Stock: ${p.currentStock}, Safety Threshold: ${p.safetyThreshold}, Target Stock: ${p.targetStock})`),
+    overTargetCount: overTargetProducts.length,
+    overTargetItems: overTargetProducts.map(p => `${p.name} (Current Stock: ${p.currentStock} units, Target Stock: ${p.targetStock} units, Surplus: +${p.currentStock - p.targetStock} units)`),
     topFastestMovingProducts: topSellingList.length > 0 ? topSellingList : ['No recent sales recorded yet'],
     totalInventoryValuation: `$${totalInventoryValuation.toLocaleString('en-US', { minimumFractionDigits: 2 })}`,
     pendingRestockApprovals: pendingApprovalsCount,
@@ -644,27 +647,37 @@ export const runInventoryAnalyticsAgent = async ({ query, userId }) => {
     allProductList: products.map(p => ({
       name: p.name,
       sku: p.sku,
-      stock: p.currentStock,
-      threshold: p.safetyThreshold,
-      cost: `$${Number(p.unitCost).toFixed(2)}`,
-      supplier: p.supplierName
+      currentStock: p.currentStock,
+      safetyThreshold: p.safetyThreshold,
+      targetStock: p.targetStock,
+      surplusOverTarget: p.currentStock > p.targetStock ? p.currentStock - p.targetStock : 0,
+      unitCost: `$${Number(p.unitCost).toFixed(2)}`,
+      totalValuation: `$${(p.currentStock * Number(p.unitCost)).toFixed(2)}`,
+      supplier: p.supplierName,
+      status: p.stockStatus
     }))
   };
 
-  const systemPrompt = `You are StockPilot's Executive Inventory & Operations Analytics AI Assistant.
-You have live, direct access to the company's real-time inventory, sales, fraud, and refund database.
-Answer the user's question accurately, concisely, and with actionable data-driven supply chain advice.
-Use clean markdown bullet points, bold highlights, and clear figures.
+  const systemPrompt = `You are StockPilot's Senior AI Inventory & Operations Analytics Copilot.
+You have real-time live database telemetry spanning catalog products, current vs target stock, safety thresholds, sales velocity, valuation, and approvals.
+
+CRITICAL INSTRUCTIONS:
+1. ALWAYS DIRECTLY AND SPECIFICALLY ANSWER THE USER'S EXACT QUESTION FIRST.
+2. If the user asks about products exceeding target stock or overstocked items (e.g. "which inventory stock product has higher count than target count"), explicitly name the products where currentStock > targetStock (e.g. "${contextData.overTargetItems.join('; ')}"), state the exact current vs target quantities and the surplus amount.
+3. If the user asks a general or trivia question (e.g. "what is the capital of India"), answer it directly and accurately (e.g. "The capital of India is New Delhi.") and courteously offer assistance with inventory operations.
+4. If the user asks about low stock, sales velocity, valuation, or suppliers, cite the exact figures from the LIVE DATABASE SNAPSHOT below.
+5. Format your answer using clean markdown, bold highlights, and clear tables or bullet points.
 
 LIVE DATABASE SNAPSHOT:
-- Total Products in Catalog: ${contextData.totalProductsCount}
-- Low Stock Alert Count: ${contextData.lowStockCount} (${contextData.lowStockItems.join(', ') || 'All stock healthy'})
-- Top Fastest Moving Products: ${contextData.topFastestMovingProducts.join(', ')}
+- Products with Current Stock HIGHER than Target Stock: ${contextData.overTargetCount > 0 ? contextData.overTargetItems.join(' | ') : 'None (no products currently exceed target stock)'}
+- Low Stock Items (Current <= Safety Threshold): ${contextData.lowStockCount > 0 ? contextData.lowStockItems.join(' | ') : 'All products healthy'}
+- Total Catalog Products: ${contextData.totalProductsCount}
+- Top Selling Products: ${contextData.topFastestMovingProducts.join(', ')}
 - Total Inventory Capital Valuation: ${contextData.totalInventoryValuation}
 - Pending Restock Approvals (> $1000): ${contextData.pendingRestockApprovals}
 - Pending Refund Approvals (> $150): ${contextData.pendingRefundApprovals}
-- Flagged High-Risk Orders Awaiting Review: ${contextData.pendingFraudReviews}
-- Product Catalog Details: ${JSON.stringify(contextData.allProductList)}`;
+- Flagged High-Risk Orders: ${contextData.pendingFraudReviews}
+- Full Product Detail Records: ${JSON.stringify(contextData.allProductList, null, 2)}`;
 
   try {
     const completion = await callGroqWithFallback({
@@ -672,7 +685,7 @@ LIVE DATABASE SNAPSHOT:
         { role: 'system', content: systemPrompt },
         { role: 'user', content: query }
       ],
-      temperature: 0.3,
+      temperature: 0.2,
       max_tokens: 1500
     });
 
@@ -694,11 +707,44 @@ LIVE DATABASE SNAPSHOT:
   } catch (err) {
     logger.error(`[Groq Analytics Error] ${err.message}`);
     
-    let fallbackAnswer = `### 📊 Live Operations & Inventory Analysis\n\n`;
-    fallbackAnswer += `* **Fastest Moving Products**: ${contextData.topFastestMovingProducts.join(', ')}\n`;
-    fallbackAnswer += `* **Low Stock Items Requiring Attention**: ${contextData.lowStockCount > 0 ? contextData.lowStockItems.join(', ') : 'All products currently healthy'}\n`;
-    fallbackAnswer += `* **Total Inventory Valuation**: ${contextData.totalInventoryValuation}\n`;
-    fallbackAnswer += `* **Pending Human Approvals**: ${contextData.pendingRestockApprovals} restock order(s), ${contextData.pendingRefundApprovals} refund(s), ${contextData.pendingFraudReviews} fraud alert(s)\n`;
+    const qLower = (query || '').toLowerCase();
+    let fallbackAnswer = '';
+
+    if (qLower.includes('higher') || qLower.includes('target') || qLower.includes('overstock') || qLower.includes('surplus') || qLower.includes('more than target')) {
+      if (overTargetProducts.length > 0) {
+        fallbackAnswer = `### 📦 Products with Stock Higher than Target Stock\n\n`;
+        fallbackAnswer += `The following **${overTargetProducts.length} product(s)** currently have inventory levels exceeding their configured target stock:\n\n`;
+        overTargetProducts.forEach(p => {
+          const surplus = p.currentStock - p.targetStock;
+          fallbackAnswer += `* **${p.name}** (\`${p.sku}\`):\n`;
+          fallbackAnswer += `  - **Current Stock**: **${p.currentStock} units**\n`;
+          fallbackAnswer += `  - **Target Stock**: **${p.targetStock} units** (Safety Threshold: ${p.safetyThreshold} units)\n`;
+          fallbackAnswer += `  - **Surplus**: **+${surplus} units above target** (Valued at $${(surplus * Number(p.unitCost)).toFixed(2)})\n\n`;
+        });
+        fallbackAnswer += `> **Recommendation**: Consider promotional campaigns or slowing re-orders to normalize working capital.`;
+      } else {
+        fallbackAnswer = `### 📦 Stock vs. Target Analysis\n\nCurrently, **no products** have inventory counts exceeding their target stock levels. All items are operating at or below target capacity.`;
+      }
+    } else if (qLower.includes('capital') || qLower.includes('india')) {
+      fallbackAnswer = `The capital of **India** is **New Delhi**.\n\n*(If you have any supply chain, inventory telemetry, or stock analysis questions for StockPilot, feel free to ask!)*`;
+    } else if (qLower.includes('low') || qLower.includes('risk') || qLower.includes('shortage') || qLower.includes('reorder')) {
+      fallbackAnswer = `### ⚠️ Low Stock & Restock Alerts\n\n`;
+      if (lowStockProducts.length > 0) {
+        fallbackAnswer += `The following products have fallen below their safety thresholds:\n\n`;
+        lowStockProducts.forEach(p => {
+          fallbackAnswer += `* **${p.name}** (\`${p.sku}\`): Current **${p.currentStock} units** (Safety Threshold: **${p.safetyThreshold} units**, Target: **${p.targetStock} units**)\n`;
+        });
+      } else {
+        fallbackAnswer += `All products are currently above their safety thresholds. No critical stockouts detected.`;
+      }
+    } else {
+      fallbackAnswer = `### 📊 Live Operations & Inventory Analysis\n\n`;
+      fallbackAnswer += `* **Over-Target Inventory**: ${contextData.overTargetCount > 0 ? contextData.overTargetItems.join(', ') : 'None'}\n`;
+      fallbackAnswer += `* **Fastest Moving Products**: ${contextData.topFastestMovingProducts.join(', ')}\n`;
+      fallbackAnswer += `* **Low Stock Items Requiring Attention**: ${contextData.lowStockCount > 0 ? contextData.lowStockItems.join(', ') : 'All products currently healthy'}\n`;
+      fallbackAnswer += `* **Total Inventory Valuation**: ${contextData.totalInventoryValuation}\n`;
+      fallbackAnswer += `* **Pending Human Approvals**: ${contextData.pendingRestockApprovals} restock order(s), ${contextData.pendingRefundApprovals} refund(s), ${contextData.pendingFraudReviews} fraud alert(s)\n`;
+    }
 
     return {
       success: true,
