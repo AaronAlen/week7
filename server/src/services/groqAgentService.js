@@ -419,17 +419,6 @@ export const runRestockProcurementAgent = async ({ productId, userId }) => {
     throw new Error(`Product with ID ${productId} not found.`);
   }
 
-  if (product.currentStock >= product.safetyThreshold) {
-    return {
-      status: 'no_action_needed',
-      message: `Stock level (${product.currentStock}) is healthy and above safety threshold (${product.safetyThreshold}). No restock required.`,
-      productId: product.id,
-      productName: product.name,
-      currentStock: product.currentStock,
-      safetyThreshold: product.safetyThreshold
-    };
-  }
-
   const existingActive = await RestockRequest.findOne({
     where: {
       productId,
@@ -455,7 +444,9 @@ export const runRestockProcurementAgent = async ({ productId, userId }) => {
   });
 
   const totalSalesUnits = recentSales.reduce((sum, tx) => sum + (tx.quantity || 0), 0);
-  const baselineReorderQty = Math.max(1, product.targetStock - product.currentStock);
+  const baselineReorderQty = product.currentStock < product.targetStock 
+    ? Math.max(1, product.targetStock - product.currentStock)
+    : Math.max(5, Math.ceil(product.targetStock * 0.25));
   const baselineCost = baselineReorderQty * Number(product.unitCost);
 
   const systemPrompt = `You are StockPilot's Senior Autonomous Supply Chain & Procurement AI Agent.
@@ -482,11 +473,14 @@ Recent Sales History: ${recentSales.length} sale transactions (${totalSalesUnits
 Supplier: ${product.supplierName} (${product.supplierEmail})
 
 Guidelines:
-1. Reorder quantity should bring stock close to target capacity (${product.targetStock}) without excessive overstocking.
-2. Calculate totalCost = recommendedQuantity * unitCost.
-3. If totalCost > 1000, set requiresHumanApproval = true. Otherwise false.
-4. Calculate burnRatePerDay based on recent sales and daysUntilStockout = currentStock / burnRate.
-5. Provide a sharp, professional executiveSummary explaining your calculation for management review.`;
+1. Reorder quantity should bring stock to target capacity (${product.targetStock}) or add strategic inventory buffer.
+2. If current stock is below safety threshold, urgency = "CRITICAL".
+3. If current stock is between safety threshold and target stock, urgency = "MODERATE" (target replenishment).
+4. If current stock is at/above target stock, urgency = "LOW" (buffer top-up).
+5. Calculate totalCost = recommendedQuantity * unitCost.
+6. If totalCost > 1000, set requiresHumanApproval = true. Otherwise false.
+7. Calculate burnRatePerDay based on recent sales and daysUntilStockout = currentStock / burnRate.
+8. Provide a sharp, professional executiveSummary explaining your calculation for management review.`;
 
   let decision;
   try {
@@ -511,11 +505,13 @@ Guidelines:
       totalCost: baselineCost,
       burnRatePerDay: Number(burnRate.toFixed(1)),
       daysUntilStockout: Number(stockoutDays.toFixed(1)),
-      urgency: product.currentStock <= product.safetyThreshold ? 'CRITICAL' : 'MODERATE',
+      urgency: product.currentStock <= product.safetyThreshold ? 'CRITICAL' : product.currentStock < product.targetStock ? 'MODERATE' : 'LOW',
       financialRiskAssessment: baselineCost > 1000 
         ? `Substantial capital commitment ($${baselineCost.toFixed(2)}). Human authorization required.`
         : `Standard procurement ($${baselineCost.toFixed(2)}). Within automated budget limits.`,
-      executiveSummary: `Stock level (${product.currentStock}) is below safety buffer (${product.safetyThreshold}). Procuring ${baselineReorderQty} units restores target capacity (${product.targetStock}) at a cost of $${baselineCost.toFixed(2)}.`,
+      executiveSummary: product.currentStock <= product.safetyThreshold
+        ? `Stock level (${product.currentStock}) is below safety threshold (${product.safetyThreshold}). Procuring ${baselineReorderQty} units restores target capacity (${product.targetStock}) at a cost of $${baselineCost.toFixed(2)}.`
+        : `Procurement triggered for ${product.name}. Procuring ${baselineReorderQty} units restores target inventory capacity (${product.targetStock}) at a total cost of $${baselineCost.toFixed(2)}.`,
       requiresHumanApproval: baselineCost > 1000
     };
   }
