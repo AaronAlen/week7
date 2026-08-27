@@ -661,12 +661,16 @@ export const runInventoryAnalyticsAgent = async ({ query, userId }) => {
   const systemPrompt = `You are StockPilot's Senior AI Inventory & Operations Analytics Copilot.
 You have real-time live database telemetry spanning catalog products, current vs target stock, safety thresholds, sales velocity, valuation, and approvals.
 
-CRITICAL INSTRUCTIONS:
-1. ALWAYS DIRECTLY AND SPECIFICALLY ANSWER THE USER'S EXACT QUESTION FIRST.
-2. If the user asks about products exceeding target stock or overstocked items (e.g. "which inventory stock product has higher count than target count"), explicitly name the products where currentStock > targetStock (e.g. "${contextData.overTargetItems.join('; ')}"), state the exact current vs target quantities and the surplus amount.
-3. If the user asks a general or trivia question (e.g. "what is the capital of India"), answer it directly and accurately (e.g. "The capital of India is New Delhi.") and courteously offer assistance with inventory operations.
-4. If the user asks about low stock, sales velocity, valuation, or suppliers, cite the exact figures from the LIVE DATABASE SNAPSHOT below.
-5. Format your answer using clean markdown, bold highlights, and clear tables or bullet points.
+CRITICAL SCOPE & DOMAIN BOUNDARY:
+1. STRICT SCOPE ENFORCEMENT: You must ONLY answer questions directly related to StockPilot's project database: inventory stock levels, product catalog, safety thresholds, target counts, sales velocity, suppliers, purchase orders, restock workflows, customer refunds, and fraud telemetry.
+2. REJECT GENERAL / TRIVIA QUESTIONS: If the user asks an unrelated general knowledge question (e.g., geography, trivia, "what is the capital of India", general world facts, politics, weather, entertainment, etc.), DO NOT answer the general question.
+   - Politely decline by responding:
+   "I am StockPilot's specialized Inventory & Operations Intelligence Agent. I only answer questions related to our project's inventory database, product catalog, stock levels, suppliers, and procurement workflows."
+   - Then provide 2-3 supply chain and catalog questions they can ask about our live inventory.
+3. INVENTORY TELEMETRY QUERIES:
+   - If the user asks about products exceeding target stock or overstocked items (e.g. "which inventory stock product has higher count than target count"), explicitly name the products where currentStock > targetStock (e.g. "${contextData.overTargetItems.join('; ')}"), state the exact current vs target quantities and the surplus amount.
+   - If the user asks about low stock, sales velocity, valuation, or suppliers, cite the exact figures from the LIVE DATABASE SNAPSHOT below.
+4. Format your answer using clean markdown, bold highlights, and clear tables or bullet points.
 
 LIVE DATABASE SNAPSHOT:
 - Products with Current Stock HIGHER than Target Stock: ${contextData.overTargetCount > 0 ? contextData.overTargetItems.join(' | ') : 'None (no products currently exceed target stock)'}
@@ -725,8 +729,8 @@ LIVE DATABASE SNAPSHOT:
       } else {
         fallbackAnswer = `### 📦 Stock vs. Target Analysis\n\nCurrently, **no products** have inventory counts exceeding their target stock levels. All items are operating at or below target capacity.`;
       }
-    } else if (qLower.includes('capital') || qLower.includes('india')) {
-      fallbackAnswer = `The capital of **India** is **New Delhi**.\n\n*(If you have any supply chain, inventory telemetry, or stock analysis questions for StockPilot, feel free to ask!)*`;
+    } else if (qLower.includes('capital') || qLower.includes('india') || qLower.includes('weather') || qLower.includes('president') || qLower.includes('movie')) {
+      fallbackAnswer = `I am StockPilot's specialized Inventory & Operations Intelligence Agent. I can only answer questions regarding our project's inventory database, product catalog, stock levels, suppliers, sales trends, and procurement workflows.\n\n> **Suggested questions you can ask me:**\n* *"Which inventory stock product has higher count than target count?"*\n* *"Which products are currently below their safety threshold?"*\n* *"What is our total inventory capital valuation?"*\n* *"What are our top fastest-moving products by sales volume?"*`;
     } else if (qLower.includes('low') || qLower.includes('risk') || qLower.includes('shortage') || qLower.includes('reorder')) {
       fallbackAnswer = `### ⚠️ Low Stock & Restock Alerts\n\n`;
       if (lowStockProducts.length > 0) {
