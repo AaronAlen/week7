@@ -31,37 +31,36 @@ export const sendPurchaseOrderSMS = async ({
   quantity,
   totalCost
 }) => {
-  console.log("this is from mssageeee");
-  
   if (!env.SMS_ENABLED) {
     logger.info(`📱 SMS service is disabled in environment config. Skipping SMS for PO #${poId}.`);
     return { success: false, reason: 'SMS_DISABLED' };
   }
 
-  if (!supplierPhone) {
-    logger.warn(`📱 No supplier phone number provided for ${supplierName} (PO #${poId}). Skipping SMS notification.`);
-    return { success: false, reason: 'NO_PHONE', message: 'No supplier phone number configured' };
+  // If supplierPhone is a demo 555 number or missing, route to verified trial recipient
+  let recipientPhone = supplierPhone || '+916382315385';
+  if (recipientPhone.includes('555') || recipientPhone.includes('019283')) {
+    recipientPhone = '+916382315385';
   }
 
   const messageBody = `[StockPilot PO #${poId}] Dear ${supplierName}, official Purchase Order created for ${quantity}x '${productName}' (SKU: ${sku}). Total: $${Number(totalCost).toFixed(2)}. Please confirm delivery timeline.`;
 
   try {
     const client = await getTwilioClient();
-    if (client) {
+    if (client && env.TWILIO_PHONE_NUMBER) {
       const res = await client.messages.create({
         body: messageBody,
         from: env.TWILIO_PHONE_NUMBER,
-        to: supplierPhone
+        to: recipientPhone
       });
-      logger.info(`📱 Purchase Order SMS dispatched via Twilio to ${supplierPhone} (SID: ${res.sid})`);
-      return { success: true, sid: res.sid, provider: 'twilio' };
+      logger.info(`📱 Purchase Order SMS dispatched via Twilio to ${recipientPhone} (SID: ${res.sid})`);
+      return { success: true, sid: res.sid, provider: 'twilio', recipient: recipientPhone };
     }
 
     // Fallback Dev / Logger SMS transport
-    logger.info(`📱 [MOCK SMS DISPATCH] To: ${supplierPhone} | Text: "${messageBody}"`);
+    logger.info(`📱 [MOCK SMS DISPATCH] To: ${recipientPhone} | Text: "${messageBody}"`);
     return { success: true, provider: 'mock_logger', message: 'Mock SMS logged' };
   } catch (error) {
-    logger.warn(`📱 SMS dispatch failed for ${supplierPhone}: ${error.message}`);
+    logger.warn(`📱 SMS dispatch failed for ${recipientPhone}: ${error.message}`);
     return { success: false, error: error.message };
   }
 };
@@ -74,8 +73,17 @@ export const sendVendorProposalSMS = async ({
   vendorName,
   message
 }) => {
-  const recipientPhone = to || '+15551234567';
-  const textContent = message || `[StockPilot] Dear ${vendorName}, your proposal has been selected for our procurement RFP. Please check your email for official contract terms.`;
+  let recipientPhone = (to || '+916382315385').trim().replace(/[\s()-]/g, '');
+  if (!recipientPhone.startsWith('+')) {
+    recipientPhone = `+${recipientPhone}`;
+  }
+
+  // If phone is a mock 555 number, route to verified trial recipient so user receives live SMS
+  if (recipientPhone.includes('555') || recipientPhone === '+15550199' || recipientPhone === '+15551234567') {
+    recipientPhone = '+916382315385';
+  }
+
+  const textContent = message || `[StockPilot] Dear ${vendorName}, your proposal has been selected for our procurement RFP. Please reply with pro-forma invoice.`;
 
   try {
     const client = await getTwilioClient();
@@ -93,7 +101,7 @@ export const sendVendorProposalSMS = async ({
     logger.info(`📱 [MOCK SMS DISPATCH] To: ${recipientPhone} (${vendorName}) | Text: "${textContent}"`);
     return { success: true, provider: 'mock_logger', message: 'Mock SMS logged successfully', recipient: recipientPhone };
   } catch (error) {
-    logger.warn(`📱 Vendor SMS dispatch failed for ${recipientPhone}: ${error.message}`);
-    return { success: false, error: error.message };
+    logger.warn(`📱 Vendor SMS dispatch failed for ${recipientPhone}: ${error.message} (Code: ${error.code})`);
+    return { success: false, error: error.message, code: error.code };
   }
 };

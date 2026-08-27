@@ -98,7 +98,22 @@ html.light-theme .theme-toggle-btn {
 /* Text Overrides for High Contrast Light Mode */
 html.light-theme .text-white,
 html.light-theme [class*="text-slate-100"],
-html.light-theme [class*="text-slate-200"] {
+html.light-theme [class*="text-slate-200"],
+html.light-theme [class*="text-white"] {
+  color: #0f172a !important;
+}
+
+html.light-theme h1,
+html.light-theme h2,
+html.light-theme h3,
+html.light-theme h4,
+html.light-theme h5,
+html.light-theme h6 {
+  color: #0f172a !important;
+}
+
+html.light-theme [class*="tracking-tight"],
+html.light-theme [class*="tracking-wide"] {
   color: #0f172a !important;
 }
 
@@ -390,4 +405,88 @@ html.light-theme .modal-card {
 }
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-muted);
+}
+
+/* --------------------------------------------------------------------------
+   Profile Role Permission Cards - High-Contrast Dark Text
+   -------------------------------------------------------------------------- */
+.profile-role-admin {
+  background-color: #faf5ff;
+  border: 2px solid #a855f7;
+}
+.profile-role-manager {
+  background-color: #eff6ff;
+  border: 2px solid #3b82f6;
+}
+.profile-role-staff {
+  background-color: #f0fdf4;
+  border: 2px solid #22c55e;
+}
+.profile-role-inactive {
+  background-color: #f8fafc;
+  border: 2px solid #e2e8f0;
+}
+.profile-card-desc {
+  color: #0f172a !important; /* Deep dark slate for maximum readability */
+  font-weight: 500 !important;
+}
+.profile-card-desc-inactive {
+  color: #475569 !important;
+  font-weight: 400 !important;
+}
+
+html.dark-theme .profile-role-admin {
+  background-color: rgba(88, 28, 135, 0.25) !important;
+  border-color: #a855f7 !important;
+}
+html.dark-theme .profile-role-manager {
+  background-color: rgba(30, 58, 138, 0.25) !important;
+  border-color: #3b82f6 !important;
+}
+html.dark-theme .profile-role-staff {
+  background-color: rgba(6, 78, 59, 0.25) !important;
+  border-color: #22c55e !important;
+}
+html.dark-theme .profile-role-inactive {
+  background-color: rgba(30, 41, 59, 0.4) !important;
+  border-color: #334155 !important;
+}
+html.dark-theme .profile-card-desc {
+  color: #f1f5f9 !important;
+}
+html.dark-theme .profile-card-desc-inactive {
+  color: #94a3b8 !important;
+}
+
+/* Email Draft Textarea - High Contrast & Auto Expand */
+html.light-theme .email-draft-box {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+html.dark-theme .email-draft-box {
+  background-color: #020617 !important;
+  color: #f8fafc !important;
+  border-color: #334155 !important;
+}
+
+/* Vendor Intelligence Evaluation Button - High Contrast */
+html.light-theme .btn-vendor-evaluate:disabled,
+html.light-theme button.btn-vendor-evaluate[disabled] {
+  background: #e2e8f0 !important;
+  color: #1e293b !important;
+  border: 1px solid #94a3b8 !important;
+  opacity: 1 !important;
+  cursor: not-allowed !important;
+}
+html.light-theme .btn-vendor-evaluate:disabled *,
+html.light-theme button.btn-vendor-evaluate[disabled] * {
+  color: #1e293b !important;
+  fill: #1e293b !important;
+}
+html.light-theme .btn-vendor-evaluate:not(:disabled) {
+  color: #ffffff !important;
+}
+html.light-theme .btn-vendor-evaluate:not(:disabled) * {
+  color: #ffffff !important;
 }

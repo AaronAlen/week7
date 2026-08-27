@@ -31,7 +31,7 @@ export const Navbar: React.FC = () => {
             <span className="text-xl font-bold tracking-tight logo-text text-white">Stock<span className="text-blue-500">Pilot</span></span>
           </Link>
           <span className="hidden sm:inline-block text-xs px-2.5 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 font-mono font-medium">
-            ⚡ Groq AI
+            🟢 Enterprise Active
           </span>
         </div>
 

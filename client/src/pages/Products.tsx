@@ -207,7 +207,7 @@ export const Products: React.FC = () => {
                     className="w-full bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold py-2 rounded-xl transition flex items-center justify-center space-x-2 disabled:opacity-50"
                   >
                     <RefreshCw className={`w-3.5 h-3.5 ${triggeringId === p.id ? 'animate-spin' : ''}`} />
-                    <span>{triggeringId === p.id ? 'Evaluating Workflow...' : 'Trigger Restock Agent'}</span>
+                    <span>{triggeringId === p.id ? 'Evaluating Replenishment...' : 'Initiate Restock'}</span>
                   </button>
                 )}
 

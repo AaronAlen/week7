@@ -30,6 +30,10 @@ export const createUser = async (req, res, next) => {
       return res.status(400).json({ error: 'User with this email already exists.' });
     }
 
+    if (req.user.role === 'MANAGER' && validated.role === 'ADMIN') {
+      return res.status(403).json({ error: 'Managers can only create Manager or Staff accounts. Administrator accounts must be created by an Admin.' });
+    }
+
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(validated.password, salt);
 

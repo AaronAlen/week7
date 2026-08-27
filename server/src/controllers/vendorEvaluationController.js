@@ -208,11 +208,17 @@ export const sendVendorSMS = async (req, res, next) => {
       message
     });
 
-    return res.json({
-      success: true,
-      message: `SMS alert dispatched to ${to} (${result.provider})`,
-      result
-    });
+    if (result.success) {
+      return res.json({
+        success: true,
+        message: `SMS alert successfully dispatched to ${to} (${result.provider})`,
+        result
+      });
+    } else {
+      return res.status(400).json({
+        error: result.error || 'Failed to dispatch SMS'
+      });
+    }
   } catch (err) {
     next(err);
   }

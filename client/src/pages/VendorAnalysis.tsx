@@ -168,17 +168,10 @@ export const VendorAnalysis: React.FC = () => {
       }
       setEmailContent(cleanEmail);
 
-      // Human-friendly, polite, professional business SMS
+      // Human-friendly, polite, concise single-segment business SMS (< 115 chars to guarantee carrier delivery)
       let cleanSms = result.smsDraft || '';
-      if (
-        !cleanSms ||
-        cleanSms.toLowerCase().includes('check your email') ||
-        cleanSms.toLowerCase().includes('check email') ||
-        cleanSms.startsWith('StockPilot:') ||
-        cleanSms.includes('awarded')
-      ) {
-        cleanSms = `Hi ${result.bestVendorName} team, this is ${userName} from StockPilot. We have approved your quotation for ${targetQuantity} units of ${title}. Please reply with your pro-forma invoice to confirm the order. Thank you!`;
-      }
+      const vendorShortName = (result.bestVendorName || 'Vendor').split(' ')[0];
+      cleanSms = `Hi ${vendorShortName} team, StockPilot has approved your quote for ${targetQuantity}x units. Please reply to confirm!`;
       setSmsContent(cleanSms);
 
       setEmailStatus(null);
@@ -368,13 +361,13 @@ export const VendorAnalysis: React.FC = () => {
             </div>
             <div>
               <h1 className="text-xl font-bold text-white tracking-tight flex items-center space-x-2">
-                <span>Autonomous Document-Driven Vendor Selection Agent</span>
+                <span>Supplier Quote Analysis & Procurement Evaluator</span>
                 <span className="text-[10px] bg-blue-500/20 text-blue-300 font-mono px-2 py-0.5 rounded-full border border-blue-500/30">
-                  AGENT 5
+                  AUTOMATED SOURCING
                 </span>
               </h1>
               <p className="text-xs text-slate-400">
-                Upload your supplier PDF quotes. The AI extracts emails, phones, pricing, warranty & SLAs, ranks the best vendor, and dispatches official emails & SMS alerts.
+                Upload supplier PDF quotes. The system automatically extracts contact information, pricing, warranty & SLAs, ranks the optimal vendor, and coordinates procurement alerts.
               </p>
             </div>
           </div>
@@ -700,17 +693,17 @@ export const VendorAnalysis: React.FC = () => {
               <button
                 type="submit"
                 disabled={loading || activeDocuments.length < 2}
-                className="w-full sm:w-auto bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white px-8 py-3 rounded-xl text-xs font-bold shadow-xl shadow-indigo-600/25 flex items-center justify-center space-x-2 transition disabled:opacity-40"
+                className="w-full sm:w-auto btn-vendor-evaluate bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white px-8 py-3.5 rounded-xl text-xs font-bold shadow-xl shadow-indigo-600/25 flex items-center justify-center space-x-2 transition disabled:opacity-80"
               >
                 {loading ? (
                   <>
                     <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span>AI Extracting Details & Ranking {activeDocuments.length} Suppliers...</span>
+                    <span>Analyzing Proposals & Evaluating {activeDocuments.length} Sourcing Quotes...</span>
                   </>
                 ) : (
                   <>
                     <Sparkles className="w-4 h-4" />
-                    <span>Run AI Vendor Intelligence Ranking</span>
+                    <span>Run Vendor Intelligence & Strategic Ranking</span>
                   </>
                 )}
               </button>
@@ -986,16 +979,18 @@ export const VendorAnalysis: React.FC = () => {
                   </div>
 
                   <div>
-                    <label className="text-slate-400 block mb-1 font-medium flex items-center space-x-1.5">
-                      <Phone className="w-3.5 h-3.5 text-emerald-400" />
-                      <span>Recipient Vendor Phone (Auto-extracted from PDF)</span>
+                    <label className="text-slate-400 block mb-1 font-medium flex items-center justify-between">
+                      <span className="flex items-center space-x-1.5">
+                        <Phone className="w-3.5 h-3.5 text-emerald-400" />
+                        <span>Recipient Vendor Phone (Twilio SMS Target)</span>
+                      </span>
                     </label>
                     <input
                       type="text"
                       value={recipientPhone}
                       onChange={e => setRecipientPhone(e.target.value)}
-                      placeholder="+1 555 0199"
-                      className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-slate-100 font-mono outline-none focus:border-emerald-500"
+                      placeholder="+1 (555) 000-0000"
+                      className="w-full bg-slate-950 border border-slate-700 rounded-xl p-2.5 text-slate-100 font-mono outline-none focus:border-emerald-500 text-xs"
                     />
                   </div>
                 </div>

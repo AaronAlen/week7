@@ -41,7 +41,7 @@ export const Register: React.FC = () => {
             <Cpu className="w-6 h-6 animate-pulse" />
           </div>
           <h1 className="text-2xl font-bold text-white tracking-tight">Create Account</h1>
-          <p className="text-xs text-slate-400">Join StockPilot Autonomous Inventory System</p>
+          <p className="text-xs text-slate-400">Join StockPilot Enterprise Workspace</p>
         </div>
 
         {error && (

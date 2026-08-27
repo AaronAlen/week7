@@ -1,15 +1,22 @@
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+/**
+ * =========================================================================
+ * THEME STATE REDUX SLICE (PURE JAVASCRIPT VERSION)
+ * =========================================================================
+ * 
+ * 🔍 KEY DIFFERENCES FROM TYPESCRIPT (themeSlice.ts):
+ * 
+ * 1. REMOVED ThemeState Interface.
+ * 2. Return types omitted on helper functions (`getInitialTheme()`).
+ */
 
-const getInitialTheme = (): 'light' | 'dark' => {
+import { createSlice } from '@reduxjs/toolkit';
+
+const getInitialTheme = () => {
   const saved = localStorage.getItem('stockpilot_theme');
   return saved === 'light' ? 'light' : 'dark';
 };
 
-export interface ThemeState {
-  mode: 'light' | 'dark';
-}
-
-const initialState: ThemeState = {
+const initialState = {
   mode: getInitialTheme()
 };
 
@@ -17,6 +24,7 @@ export const themeSlice = createSlice({
   name: 'theme',
   initialState,
   reducers: {
+    // Toggle between light and dark mode with DOM class synchronization
     toggleTheme: (state) => {
       state.mode = state.mode === 'dark' ? 'light' : 'dark';
       localStorage.setItem('stockpilot_theme', state.mode);
@@ -31,7 +39,9 @@ export const themeSlice = createSlice({
         root.setAttribute('data-theme', 'dark');
       }
     },
-    setTheme: (state, action: PayloadAction<'light' | 'dark'>) => {
+
+    // Set specific theme mode
+    setTheme: (state, action) => {
       state.mode = action.payload;
       localStorage.setItem('stockpilot_theme', state.mode);
       const root = document.documentElement;
@@ -49,4 +59,5 @@ export const themeSlice = createSlice({
 });
 
 export const { toggleTheme, setTheme } = themeSlice.actions;
+
 export default themeSlice.reducer;

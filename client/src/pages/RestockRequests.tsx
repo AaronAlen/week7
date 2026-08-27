@@ -81,7 +81,7 @@ export const RestockRequests: React.FC = () => {
     setError('');
     try {
       await api.post(`/restocks/${restockRequestId}/retry`);
-      setMessage('Restock agent re-triggered successfully.');
+      setMessage('Restock evaluation re-triggered successfully.');
       fetchRestocks();
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to retry restock request');
@@ -104,7 +104,7 @@ export const RestockRequests: React.FC = () => {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-white tracking-tight">Restock Workflows & Order Tracking</h1>
-          <p className="text-sm text-slate-400">Track agent purchase orders, receive supplier stock, or manual retry</p>
+          <p className="text-sm text-slate-400">Track automated purchase orders, receive supplier shipments, and manage replenishment</p>
         </div>
         <button
           onClick={fetchRestocks}

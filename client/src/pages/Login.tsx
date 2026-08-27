@@ -58,7 +58,7 @@ export const Login: React.FC = () => {
             <Cpu className="w-6 h-6 animate-pulse" />
           </div>
           <h1 className="text-2xl font-bold text-white tracking-tight">Stock<span className="text-blue-500">Pilot</span></h1>
-          <p className="text-xs text-slate-400">Autonomous Procurement AI & Real-Time Inventory</p>
+          <p className="text-xs text-slate-400">Enterprise Supply Chain & Inventory Operations</p>
         </div>
 
         {error && (

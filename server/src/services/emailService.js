@@ -17,9 +17,9 @@ const setupTransporter = async () => {
           user: env.EMAIL_USER,
           pass: env.EMAIL_PASSWORD
         },
-        connectionTimeout: 4000, // 4 seconds max timeout
-        greetingTimeout: 4000,
-        socketTimeout: 4000
+        connectionTimeout: 8000,
+        greetingTimeout: 8000,
+        socketTimeout: 8000
       });
       return transporter;
     } catch (err) {
@@ -35,6 +35,9 @@ const setupTransporter = async () => {
   return transporter;
 };
 
+/**
+ * Send Purchase Order Email to supplier
+ */
 export const sendPurchaseOrderEmail = async ({
   supplierEmail,
   supplierName,
@@ -47,9 +50,16 @@ export const sendPurchaseOrderEmail = async ({
 }) => {
   try {
     const mailer = await setupTransporter();
+    
+    // If recipient is a demo address, route to user's real email so they see it in their inbox
+    let recipient = supplierEmail;
+    if (!recipient || recipient.includes('@techlogistics.com') || recipient.includes('@displaydirect.com') || recipient.includes('@connectsol.com') || recipient.includes('@peripheralhub.com') || recipient.includes('@audiotech.com') || recipient.includes('@example.com')) {
+      recipient = env.EMAIL_USER || 'aaronbca123@gmail.com';
+    }
+
     const mailOptions = {
       from: env.EMAIL_FROM,
-      to: supplierEmail,
+      to: recipient,
       subject: `OFFICIAL PURCHASE ORDER #${poId} - ${productName}`,
       html: `
         <div style="font-family: Arial, sans-serif; padding: 20px; color: #333; max-width: 600px; border: 1px solid #e2e8f0; border-radius: 8px;">
@@ -92,8 +102,8 @@ export const sendPurchaseOrderEmail = async ({
     };
 
     const info = await mailer.sendMail(mailOptions);
-    logger.info(`📧 Purchase Order Email dispatched to ${supplierEmail}:`, info.messageId || info.response || 'Dispatched');
-    return { success: true, info };
+    logger.info(`📧 Purchase Order Email dispatched to ${recipient}:`, info.messageId || 'Dispatched');
+    return { success: true, info, recipient };
   } catch (error) {
     logger.warn(`📧 SMTP dispatch timed out/failed for ${supplierEmail}: ${error.message}`);
     return { success: false, error: error.message };
@@ -111,7 +121,13 @@ export const sendVendorProposalEmail = async ({
 }) => {
   try {
     const mailer = await setupTransporter();
-    const recipient = to || 'vendor@example.com';
+    
+    // If recipient is a demo or unconfigured vendor address, route to user's real email so they see it in their inbox
+    let recipient = to;
+    if (!recipient || recipient.includes('@example.com') || recipient.includes('@vendor.com') || recipient.includes('@supplier') || recipient.includes('@shenzhen') || recipient.includes('@apex') || recipient.includes('vendor@company.com')) {
+      recipient = env.EMAIL_USER || 'aaronbca123@gmail.com';
+    }
+
     const emailSubject = subject || `StockPilot Sourcing RFP Award & Next Steps - ${vendorName}`;
 
     const mailOptions = {
@@ -143,6 +159,60 @@ ${content.replace(/</g, '&lt;').replace(/>/g, '&gt;')}
     return { success: true, messageId: info.messageId || 'mock_sent', recipient };
   } catch (error) {
     logger.warn(`📧 Vendor email dispatch failed for ${to}: ${error.message}`);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Send Customer Support / Refund Decision Email via Nodemailer
+ */
+export const sendCustomerSupportEmail = async ({
+  to,
+  customerName,
+  orderNumber,
+  subject,
+  content
+}) => {
+  try {
+    const mailer = await setupTransporter();
+    
+    // If recipient is a demo or unconfigured customer address, route to user's real email so they see it in their inbox
+    let recipient = to;
+    if (!recipient || recipient.includes('@example.com') || recipient.includes('alice.johnson@example.com') || recipient.includes('customer@example.com')) {
+      recipient = env.EMAIL_USER || 'aaronbca123@gmail.com';
+    }
+
+    const emailSubject = subject || `Update Regarding Your Order #${orderNumber || ''} - StockPilot Customer Support`;
+
+    const mailOptions = {
+      from: env.EMAIL_FROM,
+      to: recipient,
+      subject: emailSubject,
+      text: content,
+      html: `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; padding: 24px; color: #1e293b; max-width: 650px; border: 1px solid #e2e8f0; border-radius: 12px; background: #ffffff; margin: 0 auto; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);">
+          <div style="border-bottom: 2px solid #2563eb; padding-bottom: 12px; margin-bottom: 20px;">
+            <h2 style="color: #1e40af; margin: 0; font-size: 20px;">StockPilot Customer Care</h2>
+            <p style="color: #64748b; font-size: 13px; margin: 4px 0 0 0;">Official Support Communication for Order #${orderNumber || 'General'}</p>
+          </div>
+          
+          <div style="white-space: pre-wrap; font-size: 14px; line-height: 1.7; color: #334155; margin-bottom: 24px; font-family: inherit;">
+${content.replace(/</g, '&lt;').replace(/>/g, '&gt;')}
+          </div>
+
+          <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 14px; font-size: 12px; color: #64748b;">
+            <p style="margin: 0;"><strong>Customer:</strong> ${customerName || 'Valued Customer'} &lt;${recipient}&gt;</p>
+            <p style="margin: 4px 0 0 0;">This email was sent by the StockPilot Customer Support Operations Team.</p>
+          </div>
+        </div>
+      `
+    };
+
+    const info = await mailer.sendMail(mailOptions);
+    logger.info(`📧 Customer support email dispatched to ${recipient} (Message ID: ${info.messageId || 'mock'})`);
+    return { success: true, messageId: info.messageId || 'sent', recipient };
+  } catch (error) {
+    logger.warn(`📧 Customer support email dispatch failed for ${to}: ${error.message}`);
     return { success: false, error: error.message };
   }
 };

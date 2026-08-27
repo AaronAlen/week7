@@ -1,6 +1,8 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useEffect, ReactNode } from 'react';
 import api from '../services/api.ts';
 import { User, UserRole } from '../types/index.ts';
+import { useAppDispatch, useAppSelector } from '../store/index.ts';
+import { setCredentials, logout as reduxLogout } from '../store/slices/authSlice.ts';
 
 interface AuthContextType {
   user: User | null;
@@ -14,11 +16,9 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | null>(null);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<User | null>(() => {
-    const saved = sessionStorage.getItem('user');
-    return saved ? JSON.parse(saved) : null;
-  });
-  const [loading, setLoading] = useState<boolean>(true);
+  const dispatch = useAppDispatch();
+  const user = useAppSelector((state) => state.auth.user);
+  const [loading, setLoading] = React.useState<boolean>(false);
 
   useEffect(() => {
     const initAuth = async () => {
@@ -33,40 +33,30 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         }
       }
 
-      if (token) {
+      if (token && !user) {
         try {
           const res = await api.get<User>('/users/profile');
-          setUser(res.data);
-          sessionStorage.setItem('user', JSON.stringify(res.data));
+          dispatch(setCredentials({ user: res.data, accessToken: token }));
         } catch {
-          logout();
+          dispatch(reduxLogout());
         }
-      } else {
-        sessionStorage.removeItem('accessToken');
-        sessionStorage.removeItem('user');
-        setUser(null);
       }
-      setLoading(false);
     };
 
     initAuth();
-  }, []);
+  }, [dispatch, user]);
 
   const login = async (email: string, password: string): Promise<User> => {
     const res = await api.post<{ user: User; accessToken: string }>('/auth/login', { email, password });
     const { user: userData, accessToken } = res.data;
-    sessionStorage.setItem('accessToken', accessToken);
-    sessionStorage.setItem('user', JSON.stringify(userData));
-    setUser(userData);
+    dispatch(setCredentials({ user: userData, accessToken }));
     return userData;
   };
 
   const register = async (name: string, email: string, password: string, role: UserRole = 'STAFF'): Promise<User> => {
     const res = await api.post<{ user: User; accessToken: string }>('/auth/register', { name, email, password, role });
     const { user: userData, accessToken } = res.data;
-    sessionStorage.setItem('accessToken', accessToken);
-    sessionStorage.setItem('user', JSON.stringify(userData));
-    setUser(userData);
+    dispatch(setCredentials({ user: userData, accessToken }));
     return userData;
   };
 
@@ -76,9 +66,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     } catch {
       // Ignore logout API errors
     } finally {
-      sessionStorage.removeItem('accessToken');
-      sessionStorage.removeItem('user');
-      setUser(null);
+      dispatch(reduxLogout());
     }
   };
 

@@ -8,7 +8,7 @@ const router = Router();
 router.use(authenticateToken);
 
 router.get('/profile', getProfile);
-router.get('/', authorizeRoles('ADMIN'), getUsers);
-router.post('/', authorizeRoles('ADMIN'), createUser);
+router.get('/', authorizeRoles('ADMIN', 'MANAGER'), getUsers);
+router.post('/', authorizeRoles('ADMIN', 'MANAGER'), createUser);
 
 export default router;

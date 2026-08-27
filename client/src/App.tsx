@@ -56,7 +56,7 @@ export const App: React.FC = () => {
                 <Route path="purchase-orders" element={<PurchaseOrders />} />
                 <Route path="agent-logs" element={<AgentLogs />} />
                 <Route path="chat" element={<Chat />} />
-                <Route path="users" element={<ProtectedRoute roles={['ADMIN']}><Users /></ProtectedRoute>} />
+                <Route path="users" element={<ProtectedRoute roles={['ADMIN', 'MANAGER']}><Users /></ProtectedRoute>} />
                 <Route path="profile" element={<Profile />} />
               </Route>
 

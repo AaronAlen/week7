@@ -117,10 +117,10 @@ export const Dashboard: React.FC = () => {
           <h1 className="text-2xl font-bold text-white tracking-tight flex items-center space-x-2">
             <span>Executive Inventory Dashboard</span>
             <span className="text-xs font-mono font-normal px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-              ⚡ Groq LLaMA 3.3
+              🟢 Live Telemetry
             </span>
           </h1>
-          <p className="text-sm text-slate-400">Autonomous Procurement AI & Real-Time Telemetry</p>
+          <p className="text-sm text-slate-400">Autonomous Inventory Management & Operations Analytics</p>
         </div>
         <div className="flex items-center space-x-3">
           <button
@@ -143,7 +143,7 @@ export const Dashboard: React.FC = () => {
         </div>
       )}
 
-      {/* 🤖 GROQ AI INVENTORY COPILOT WIDGET */}
+      {/* OPERATIONS INTELLIGENCE COPILOT WIDGET */}
       <div className="bg-gradient-to-br from-slate-900 via-indigo-950/40 to-slate-900 border border-indigo-500/30 rounded-2xl p-6 shadow-xl relative overflow-hidden">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
           <div className="flex items-center space-x-2.5">
@@ -152,10 +152,10 @@ export const Dashboard: React.FC = () => {
             </div>
             <div>
               <h2 className="text-base font-bold text-white flex items-center space-x-2">
-                <span>AI Inventory Analytics Copilot</span>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 font-mono">Live SQL DB Access</span>
+                <span>Inventory Operations Intelligence</span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 font-mono">Live Database Sync</span>
               </h2>
-              <p className="text-xs text-slate-400">Ask natural language questions about sales trends, fast-moving items, or stockout risks</p>
+              <p className="text-xs text-slate-400">Query sales trends, stock shortages, inventory capital, and supplier performance</p>
             </div>
           </div>
         </div>
@@ -188,7 +188,7 @@ export const Dashboard: React.FC = () => {
             value={aiQuery}
             onChange={(e) => setAiQuery(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleAskAI()}
-            placeholder="Ask Groq AI e.g. 'Which supplier do we spend the most with?'..."
+            placeholder="Query inventory intelligence e.g. 'Which supplier do we spend the most with?'..."
             className="flex-1 bg-slate-950/80 border border-slate-700/80 focus:border-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 outline-none transition"
           />
           <button
@@ -216,7 +216,7 @@ export const Dashboard: React.FC = () => {
                   <Sparkles className="w-3.5 h-3.5" />
                 </div>
                 <span className="text-xs sm:text-sm font-bold text-white tracking-tight">
-                  StockPilot AI Intelligence & Analytics
+                  Operations Intelligence Analysis
                 </span>
                 <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                   Live Database Telemetry

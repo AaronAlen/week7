@@ -30,7 +30,11 @@ export const getApprovals = async (req, res, next) => {
   try {
     const { status } = req.query;
     const where = {};
-    if (status) where.status = status;
+    if (status && status !== 'ALL') {
+      where.status = status;
+    } else if (status !== 'ALL') {
+      where.status = 'PENDING';
+    }
 
     const approvals = await ApprovalsQueue.findAll({
       where,

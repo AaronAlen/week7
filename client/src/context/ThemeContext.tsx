@@ -18,12 +18,12 @@ export const ThemeProvider: React.FC<{ children: ReactNode }> = ({ children }) =
   useEffect(() => {
     const root = document.documentElement;
     if (theme === 'light') {
-      root.classList.add('light-theme');
-      root.classList.remove('dark-theme');
+      root.classList.add('light-theme', 'light');
+      root.classList.remove('dark-theme', 'dark');
       root.setAttribute('data-theme', 'light');
     } else {
-      root.classList.add('dark-theme');
-      root.classList.remove('light-theme');
+      root.classList.add('dark-theme', 'dark');
+      root.classList.remove('light-theme', 'light');
       root.setAttribute('data-theme', 'dark');
     }
     localStorage.setItem('stockpilot_theme', theme);

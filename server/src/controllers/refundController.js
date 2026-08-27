@@ -115,3 +115,57 @@ export const decideRefund = async (req, res, next) => {
     next(error);
   }
 };
+
+export const sendRefundCustomerEmail = async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const { to, customerName, subject, content } = req.body;
+
+    let refund = null;
+    if (id && id !== 'custom') {
+      refund = await RefundRequest.findByPk(id);
+    }
+
+    const recipientEmail = to || refund?.customerEmail;
+    const recipientName = customerName || refund?.customerName;
+    const orderNum = refund?.orderNumber || req.body.orderNumber || 'ORD-SUPPORT';
+
+    if (!recipientEmail || !content) {
+      return res.status(400).json({ error: 'Recipient email and email content are required.' });
+    }
+
+    const { sendCustomerSupportEmail } = await import('../services/emailService.js');
+    const result = await sendCustomerSupportEmail({
+      to: recipientEmail,
+      customerName: recipientName,
+      orderNumber: orderNum,
+      subject: subject || `Update Regarding Your Order #${orderNum} - StockPilot Customer Support`,
+      content
+    });
+
+    if (refund) {
+      refund.customerEmailDraft = content;
+      await refund.save();
+    }
+
+    await AgentLog.create({
+      action: 'CUSTOMER_SUPPORT_EMAIL_SENT',
+      status: result.success ? 'SUCCESS' : 'FAILED',
+      message: `Support email dispatched to ${recipientEmail} for Order #${orderNum} (${result.success ? 'Delivered via Nodemailer' : 'Failed'}).`
+    });
+
+    if (result.success) {
+      return res.json({
+        success: true,
+        message: `Customer support email successfully dispatched to ${recipientEmail}`,
+        result
+      });
+    } else {
+      return res.status(500).json({
+        error: result.error || 'Failed to dispatch email via Nodemailer'
+      });
+    }
+  } catch (error) {
+    next(error);
+  }
+};

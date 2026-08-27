@@ -39,9 +39,9 @@ export const Sidebar: React.FC = () => {
     { to: '/pending-approvals', label: 'Pending Approvals', icon: CheckSquare, roles: ['ADMIN', 'MANAGER'] },
     { to: '/vendor-analysis', label: 'Supplier Intelligence', icon: Award, roles: ['ADMIN', 'MANAGER'] },
     { to: '/purchase-orders', label: 'Purchase Orders', icon: FileText },
-    { to: '/agent-logs', label: 'Agent Activity Logs', icon: Activity },
-    { to: '/chat', label: 'Real-Time Chat', icon: MessageSquare },
-    { to: '/users', label: 'User Management', icon: Users, roles: ['ADMIN'] },
+    { to: '/agent-logs', label: 'System Audit Logs', icon: Activity },
+    { to: '/chat', label: 'Operations Chat', icon: MessageSquare },
+    { to: '/users', label: 'User Management', icon: Users, roles: ['ADMIN', 'MANAGER'] },
     { to: '/profile', label: 'Profile', icon: UserCheck }
   ];
 
@@ -72,8 +72,8 @@ export const Sidebar: React.FC = () => {
       </nav>
 
       <div className="pt-4 border-t border-slate-800 text-xs text-slate-500 space-y-1">
-        <p className="font-medium text-slate-400">StockPilot AI v2.0</p>
-        <p>Groq LLaMA 3.3 Autonomous Agent</p>
+        <p className="font-medium text-slate-400">StockPilot Enterprise v2.0</p>
+        <p>Intelligent Supply Chain Operations</p>
       </div>
     </aside>
   );
