@@ -591,7 +591,7 @@ export const PendingApprovals: React.FC = () => {
                       className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-xl text-xs font-semibold flex items-center space-x-1.5 shadow-lg shadow-blue-600/20 disabled:opacity-50 transition"
                     >
                       <Mail className={`w-3.5 h-3.5 ${simSendingEmail ? 'animate-spin' : ''}`} />
-                      <span>{simSendingEmail ? 'Dispatching Mail...' : 'Send Email via Nodemailer'}</span>
+                      <span>{simSendingEmail ? 'Dispatching Mail...' : 'Send Email'}</span>
                     </button>
                     <button
                       type="button"

@@ -1045,7 +1045,7 @@ export const VendorAnalysis: React.FC = () => {
                       ) : (
                         <>
                           <Mail className="w-3.5 h-3.5" />
-                          <span>Send Email via Nodemailer</span>
+                          <span>Send Email</span>
                         </>
                       )}
                     </button>
