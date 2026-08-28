@@ -144,18 +144,18 @@ export const Dashboard: React.FC = () => {
       )}
 
       {/* OPERATIONS INTELLIGENCE COPILOT WIDGET */}
-      <div className="bg-gradient-to-br from-slate-900 via-indigo-950/40 to-slate-900 border border-indigo-500/30 rounded-2xl p-6 shadow-xl relative overflow-hidden">
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-xl relative overflow-hidden">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
           <div className="flex items-center space-x-2.5">
-            <div className="w-9 h-9 rounded-xl bg-indigo-600/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shadow-inner">
-              <BrainCircuit className="w-5 h-5 text-indigo-400 animate-pulse" />
+            <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/60 border border-blue-200 dark:border-blue-800/80 flex items-center justify-center text-blue-600 dark:text-blue-400">
+              <BrainCircuit className="w-5 h-5 animate-pulse" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-white flex items-center space-x-2">
+              <h2 className="text-base font-bold text-slate-900 dark:text-white flex items-center space-x-2">
                 <span>Inventory Operations Intelligence</span>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-300 font-mono">Live Database Sync</span>
+                <span className="text-[10px] px-2.5 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 font-mono font-medium border border-blue-200 dark:border-blue-800">Live Database Sync</span>
               </h2>
-              <p className="text-xs text-slate-400">Query sales trends, stock shortages, inventory capital, and supplier performance</p>
+              <p className="text-xs text-slate-600 dark:text-slate-400">Query sales trends, stock shortages, inventory capital, and supplier performance</p>
             </div>
           </div>
         </div>
@@ -174,7 +174,7 @@ export const Dashboard: React.FC = () => {
                 setAiQuery(chip.query);
                 handleAskAI(chip.query);
               }}
-              className="text-xs px-3 py-1.5 rounded-xl bg-slate-800/80 hover:bg-indigo-600/20 text-slate-300 hover:text-indigo-300 border border-slate-700/80 hover:border-indigo-500/40 transition flex items-center space-x-1.5"
+              className="text-xs px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-800 dark:text-slate-200 border border-slate-300 dark:border-slate-700 font-medium transition flex items-center space-x-1.5 shadow-sm"
             >
               <span>{chip.label}</span>
             </button>
@@ -189,12 +189,12 @@ export const Dashboard: React.FC = () => {
             onChange={(e) => setAiQuery(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleAskAI()}
             placeholder="Query inventory intelligence e.g. 'Which supplier do we spend the most with?'..."
-            className="flex-1 bg-slate-950/80 border border-slate-700/80 focus:border-indigo-500 rounded-xl px-4 py-2.5 text-sm text-slate-100 placeholder-slate-500 outline-none transition"
+            className="flex-1 bg-slate-50 dark:bg-slate-950 border border-slate-300 dark:border-slate-700 focus:border-blue-500 dark:focus:border-blue-500 rounded-xl px-4 py-2.5 text-sm text-slate-900 dark:text-slate-100 placeholder-slate-400 dark:placeholder-slate-500 outline-none transition shadow-inner"
           />
           <button
             onClick={() => handleAskAI()}
             disabled={aiLoading || !aiQuery.trim()}
-            className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white font-medium px-4 py-2.5 rounded-xl text-sm transition flex items-center space-x-2 shadow-lg shadow-indigo-600/20 shrink-0"
+            className="bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-semibold px-5 py-2.5 rounded-xl text-sm transition flex items-center space-x-2 shadow-md shadow-blue-600/20 shrink-0"
           >
             {aiLoading ? (
               <RefreshCw className="w-4 h-4 animate-spin text-white" />
@@ -209,22 +209,22 @@ export const Dashboard: React.FC = () => {
 
         {/* AI Answer Box */}
         {aiAnswer && (
-          <div className="mt-5 p-5 rounded-2xl bg-slate-950/95 border border-indigo-500/40 shadow-2xl backdrop-blur-md animate-in fade-in zoom-in-95 duration-200">
-            <div className="flex items-center justify-between mb-3 pb-3 border-b border-indigo-500/20">
+          <div className="mt-5 p-5 rounded-2xl bg-slate-50 dark:bg-slate-950 border border-slate-200 dark:border-slate-800 shadow-xl animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex items-center justify-between mb-3 pb-3 border-b border-slate-200 dark:border-slate-800">
               <div className="flex items-center space-x-2">
-                <div className="w-6 h-6 rounded-lg bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400">
+                <div className="w-6 h-6 rounded-lg bg-blue-100 dark:bg-blue-900/40 border border-blue-200 dark:border-blue-800 flex items-center justify-center text-blue-600 dark:text-blue-400">
                   <Sparkles className="w-3.5 h-3.5" />
                 </div>
-                <span className="text-xs sm:text-sm font-bold text-white tracking-tight">
+                <span className="text-xs sm:text-sm font-bold text-slate-900 dark:text-white tracking-tight">
                   Operations Intelligence Analysis
                 </span>
-                <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                <span className="text-[10px] font-mono font-semibold px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-400 border border-emerald-200 dark:border-emerald-800">
                   Live Database Telemetry
                 </span>
               </div>
               <button
                 onClick={() => setAiAnswer(null)}
-                className="text-xs text-slate-400 hover:text-white px-2.5 py-1 rounded-lg bg-slate-900 border border-slate-800 hover:border-slate-700 transition"
+                className="text-xs text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white px-2.5 py-1 rounded-lg bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 transition"
               >
                 Close ✕
               </button>

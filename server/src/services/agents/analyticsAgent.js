@@ -17,7 +17,7 @@ export const runInventoryAnalyticsAgent = async ({ query, userId }) => {
   const products = await Product.findAll({ order: [['currentStock', 'ASC']] });
   const lowStockProducts = products.filter(p => p.currentStock <= p.safetyThreshold);
   const overTargetProducts = products.filter(p => p.currentStock > p.targetStock);
-  
+
   const recentSales = await InventoryTransaction.findAll({
     where: { type: 'SALE' },
     limit: 50,
@@ -37,7 +37,7 @@ export const runInventoryAnalyticsAgent = async ({ query, userId }) => {
     .map(([name, qty]) => `${name} (${qty} units sold)`);
 
   const totalInventoryValuation = products.reduce(
-    (sum, p) => sum + (p.currentStock * Number(p.unitCost)), 
+    (sum, p) => sum + (p.currentStock * Number(p.unitCost)),
     0
   );
 
@@ -92,83 +92,27 @@ LIVE DATABASE SNAPSHOT:
 - Pending Refund Approvals (> $150): ${contextData.pendingRefundApprovals}
 - Full Product Detail Records: ${JSON.stringify(contextData.allProductList, null, 2)}`;
 
-  try {
-    const completion = await callGroqWithFallback({
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: query }
-      ],
-      temperature: 0.2,
-      max_tokens: 1500
-    });
+  const completion = await callGroqWithFallback({
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: query }
+    ],
+    temperature: 0.2,
+    max_tokens: 1500
+  });
 
-    const answer = completion.choices[0]?.message?.content || 'Unable to analyze inventory data at this time.';
+  const answer = completion.choices[0]?.message?.content || 'Unable to analyze inventory data at this time.';
 
-    return {
-      success: true,
-      answer,
-      metrics: {
-        totalProducts: contextData.totalProductsCount,
-        lowStockCount: contextData.lowStockCount,
-        fastestMoving: contextData.topFastestMovingProducts[0] || 'N/A',
-        valuation: contextData.totalInventoryValuation,
-        pendingApprovals: contextData.pendingRestockApprovals,
-        pendingRefunds: contextData.pendingRefundApprovals
-      }
-    };
-  } catch (err) {
-    logger.error(`[Groq Analytics Error] ${err.message}`);
-    
-    const qLower = (query || '').toLowerCase();
-    let fallbackAnswer = '';
-
-    if (qLower.includes('higher') || qLower.includes('target') || qLower.includes('overstock') || qLower.includes('surplus') || qLower.includes('more than target')) {
-      if (overTargetProducts.length > 0) {
-        fallbackAnswer = `### 📦 Products with Stock Higher than Target Stock\n\n`;
-        fallbackAnswer += `The following **${overTargetProducts.length} product(s)** currently have inventory levels exceeding their configured target stock:\n\n`;
-        overTargetProducts.forEach(p => {
-          const surplus = p.currentStock - p.targetStock;
-          fallbackAnswer += `* **${p.name}** (\`${p.sku}\`):\n`;
-          fallbackAnswer += `  - **Current Stock**: **${p.currentStock} units**\n`;
-          fallbackAnswer += `  - **Target Stock**: **${p.targetStock} units** (Safety Threshold: ${p.safetyThreshold} units)\n`;
-          fallbackAnswer += `  - **Surplus**: **+${surplus} units above target** (Valued at $${(surplus * Number(p.unitCost)).toFixed(2)})\n\n`;
-        });
-        fallbackAnswer += `> **Recommendation**: Consider promotional campaigns or slowing re-orders to normalize working capital.`;
-      } else {
-        fallbackAnswer = `### 📦 Stock vs. Target Analysis\n\nCurrently, **no products** have inventory counts exceeding their target stock levels. All items are operating at or below target capacity.`;
-      }
-    } else if (qLower.includes('capital') || qLower.includes('india') || qLower.includes('weather') || qLower.includes('president') || qLower.includes('movie')) {
-      fallbackAnswer = `I am StockPilot's specialized Inventory & Operations Intelligence Agent. I can only answer questions regarding our project's inventory database, product catalog, stock levels, suppliers, sales trends, and procurement workflows.\n\n> **Suggested questions you can ask me:**\n* *"Which inventory stock product has higher count than target count?"*\n* *"Which products are currently below their safety threshold?"*\n* *"What is our total inventory capital valuation?"*\n* *"What are our top fastest-moving products by sales volume?"*`;
-    } else if (qLower.includes('low') || qLower.includes('risk') || qLower.includes('shortage') || qLower.includes('reorder')) {
-      fallbackAnswer = `### ⚠️ Low Stock & Restock Alerts\n\n`;
-      if (lowStockProducts.length > 0) {
-        fallbackAnswer += `The following products have fallen below their safety thresholds:\n\n`;
-        lowStockProducts.forEach(p => {
-          fallbackAnswer += `* **${p.name}** (\`${p.sku}\`): Current **${p.currentStock} units** (Safety Threshold: **${p.safetyThreshold} units**, Target: **${p.targetStock} units**)\n`;
-        });
-      } else {
-        fallbackAnswer = `All products are currently above their safety thresholds. No critical stockouts detected.`;
-      }
-    } else {
-      fallbackAnswer = `### 📊 Live Operations & Inventory Analysis\n\n`;
-      fallbackAnswer += `* **Over-Target Inventory**: ${contextData.overTargetCount > 0 ? contextData.overTargetItems.join(', ') : 'None'}\n`;
-      fallbackAnswer += `* **Fastest Moving Products**: ${contextData.topFastestMovingProducts.join(', ')}\n`;
-      fallbackAnswer += `* **Low Stock Items Requiring Attention**: ${contextData.lowStockCount > 0 ? contextData.lowStockItems.join(', ') : 'All products currently healthy'}\n`;
-      fallbackAnswer += `* **Total Inventory Valuation**: ${contextData.totalInventoryValuation}\n`;
-      fallbackAnswer += `* **Pending Human Approvals**: ${contextData.pendingRestockApprovals} restock order(s), ${contextData.pendingRefundApprovals} refund(s)\n`;
+  return {
+    success: true,
+    answer,
+    metrics: {
+      totalProducts: contextData.totalProductsCount,
+      lowStockCount: contextData.lowStockCount,
+      fastestMoving: contextData.topFastestMovingProducts[0] || 'N/A',
+      valuation: contextData.totalInventoryValuation,
+      pendingApprovals: contextData.pendingRestockApprovals,
+      pendingRefunds: contextData.pendingRefundApprovals
     }
-
-    return {
-      success: true,
-      answer: fallbackAnswer,
-      metrics: {
-        totalProducts: contextData.totalProductsCount,
-        lowStockCount: contextData.lowStockCount,
-        fastestMoving: contextData.topFastestMovingProducts[0] || 'N/A',
-        valuation: contextData.totalInventoryValuation,
-        pendingApprovals: contextData.pendingRestockApprovals,
-        pendingRefunds: contextData.pendingRefundApprovals
-      }
-    };
-  }
+  };
 };

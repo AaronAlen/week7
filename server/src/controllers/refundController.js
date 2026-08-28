@@ -85,13 +85,16 @@ export const decideRefund = async (req, res, next) => {
     if (isApproved && refund.restockQuantity > 0 && refund.productId) {
       const product = await Product.findByPk(refund.productId);
       if (product) {
+        const prevStock = product.currentStock;
+        const nextStock = prevStock + refund.restockQuantity;
         await product.increment('currentStock', { by: refund.restockQuantity });
         await InventoryTransaction.create({
           productId: product.id,
           type: 'RESTOCK',
           quantity: refund.restockQuantity,
-          reason: `Human-Approved Refund Restock (Order #${refund.orderNumber})`,
-          performedBy: req.user.id
+          previousStock: prevStock,
+          newStock: nextStock,
+          referenceId: `REFUND-MANUAL-${refund.orderNumber}`
         });
       }
     }

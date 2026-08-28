@@ -714,7 +714,7 @@ export const VendorAnalysis: React.FC = () => {
           {result && (
             <div className="space-y-6 pt-4 animate-in fade-in zoom-in-95 duration-300">
               {/* Winner Hero Banner */}
-              <div className="bg-gradient-to-br from-slate-900 via-indigo-950/40 to-slate-900 border border-indigo-500/30 rounded-3xl p-6 shadow-2xl relative overflow-hidden">
+              <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl p-6 shadow-2xl relative overflow-hidden">
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-6 relative z-10">
                   <div className="space-y-2">
                     <div className="flex flex-wrap items-center gap-2">

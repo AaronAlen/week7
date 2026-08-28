@@ -9,7 +9,6 @@ import {
 } from '../../models/index.js';
 import { sendPurchaseOrderEmail } from '../emailService.js';
 import { sendPurchaseOrderSMS } from '../smsService.js';
-import { callGroqWithFallback } from './groqClient.js';
 import { logger } from '../../utils/logger.js';
 
 /**
@@ -49,80 +48,34 @@ export const runRestockProcurementAgent = async ({ productId, userId }) => {
   });
 
   const totalSalesUnits = recentSales.reduce((sum, tx) => sum + (tx.quantity || 0), 0);
-  const baselineReorderQty = product.currentStock < product.targetStock 
+  const baselineReorderQty = product.currentStock < product.targetStock
     ? Math.max(1, product.targetStock - product.currentStock)
     : Math.max(5, Math.ceil(product.targetStock * 0.25));
   const baselineCost = baselineReorderQty * Number(product.unitCost);
 
-  const systemPrompt = `You are StockPilot's Senior Autonomous Supply Chain & Procurement AI Agent.
-Analyze the product inventory state and sales velocity to determine the optimal restock decision.
-You must respond with ONLY a valid JSON object matching this exact structure:
-{
-  "recommendedQuantity": number,
-  "totalCost": number,
-  "burnRatePerDay": number,
-  "daysUntilStockout": number,
-  "urgency": "CRITICAL" | "MODERATE" | "LOW",
-  "financialRiskAssessment": "string",
-  "executiveSummary": "string",
-  "requiresHumanApproval": boolean
-}`;
+  // Fast, deterministic supply chain mathematics & demand forecasting (0ms latency)
+  const burnRate = recentSales.length > 0 ? (totalSalesUnits / Math.max(1, recentSales.length * 1.5)) : 1.0;
+  const stockoutDays = product.currentStock > 0 ? (product.currentStock / Math.max(0.1, burnRate)) : 0;
+  const isBelowSafety = product.currentStock <= product.safetyThreshold;
+  const urgency = isBelowSafety ? 'CRITICAL' : product.currentStock < product.targetStock ? 'MODERATE' : 'LOW';
+  const requiresApproval = baselineCost > 1000;
 
-  const userPrompt = `Evaluate restocking for:
-Product: ${product.name} (SKU: ${product.sku})
-Current Stock: ${product.currentStock} units
-Safety Threshold: ${product.safetyThreshold} units
-Target Capacity: ${product.targetStock} units
-Unit Cost: $${Number(product.unitCost).toFixed(2)}
-Recent Sales History: ${recentSales.length} sale transactions (${totalSalesUnits} total units sold)
-Supplier: ${product.supplierName} (${product.supplierEmail})
-
-Guidelines:
-1. Reorder quantity should bring stock to target capacity (${product.targetStock}) or add strategic inventory buffer.
-2. If current stock is below safety threshold, urgency = "CRITICAL".
-3. If current stock is between safety threshold and target stock, urgency = "MODERATE" (target replenishment).
-4. If current stock is at/above target stock, urgency = "LOW" (buffer top-up).
-5. Calculate totalCost = recommendedQuantity * unitCost.
-6. If totalCost > 1000, set requiresHumanApproval = true. Otherwise false.
-7. Calculate burnRatePerDay based on recent sales and daysUntilStockout = currentStock / burnRate.
-8. Provide a sharp, professional executiveSummary explaining your calculation for management review.`;
-
-  let decision;
-  try {
-    const completion = await callGroqWithFallback({
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
-      ],
-      response_format: { type: 'json_object' },
-      temperature: 0.2,
-      max_tokens: 1500
-    });
-
-    decision = JSON.parse(completion.choices[0]?.message?.content || '{}');
-  } catch (err) {
-    logger.warn(`[Groq AI Agent Warning] ${err.message}. Using deterministic fallback.`);
-    const burnRate = recentSales.length > 0 ? (totalSalesUnits / Math.max(1, recentSales.length * 1.5)) : 1.0;
-    const stockoutDays = product.currentStock > 0 ? (product.currentStock / Math.max(0.1, burnRate)) : 0;
-    
-    decision = {
-      recommendedQuantity: baselineReorderQty,
-      totalCost: baselineCost,
-      burnRatePerDay: Number(burnRate.toFixed(1)),
-      daysUntilStockout: Number(stockoutDays.toFixed(1)),
-      urgency: product.currentStock <= product.safetyThreshold ? 'CRITICAL' : product.currentStock < product.targetStock ? 'MODERATE' : 'LOW',
-      financialRiskAssessment: baselineCost > 1000 
-        ? `Substantial capital commitment ($${baselineCost.toFixed(2)}). Human authorization required.`
-        : `Standard procurement ($${baselineCost.toFixed(2)}). Within automated budget limits.`,
-      executiveSummary: product.currentStock <= product.safetyThreshold
-        ? `Stock level (${product.currentStock}) is below safety threshold (${product.safetyThreshold}). Procuring ${baselineReorderQty} units restores target capacity (${product.targetStock}) at a cost of $${baselineCost.toFixed(2)}.`
-        : `Procurement triggered for ${product.name}. Procuring ${baselineReorderQty} units restores target inventory capacity (${product.targetStock}) at a total cost of $${baselineCost.toFixed(2)}.`,
-      requiresHumanApproval: baselineCost > 1000
-    };
-  }
+  const decision = {
+    recommendedQuantity: baselineReorderQty,
+    totalCost: baselineCost,
+    burnRatePerDay: Number(burnRate.toFixed(1)),
+    daysUntilStockout: Number(stockoutDays.toFixed(1)),
+    urgency,
+    financialRiskAssessment: requiresApproval
+      ? `Substantial capital commitment ($${baselineCost.toFixed(2)}). Exceeds $1,000 automated budget limit. Human authorization required.`
+      : `Standard procurement ($${baselineCost.toFixed(2)}). Within automated budget limits.`,
+    executiveSummary: isBelowSafety
+      ? `Stock level (${product.currentStock} units) is at or below safety threshold (${product.safetyThreshold} units). Procuring ${baselineReorderQty} units restores target capacity (${product.targetStock} units) at a total investment of $${baselineCost.toFixed(2)}.`
+      : `Procurement triggered for ${product.name}. Procuring ${baselineReorderQty} units restores target inventory capacity (${product.targetStock} units) at a total investment of $${baselineCost.toFixed(2)}.`,
+    requiresHumanApproval: requiresApproval
+  };
 
   const threadId = `groq-procure-${productId}-${Date.now()}`;
-  const requiresApproval = Boolean(decision.requiresHumanApproval || decision.totalCost > 1000);
 
   const restockReq = await RestockRequest.create({
     productId: product.id,

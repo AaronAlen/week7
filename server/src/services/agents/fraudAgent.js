@@ -28,12 +28,12 @@ export const runFraudDetectionAgent = async ({
 
   const recentProductSales = product
     ? await InventoryTransaction.count({
-        where: {
-          productId: product.id,
-          type: 'SALE',
-          createdAt: { [Op.gte]: new Date(Date.now() - 24 * 60 * 60 * 1000) }
-        }
-      })
+      where: {
+        productId: product.id,
+        type: 'SALE',
+        createdAt: { [Op.gte]: new Date(Date.now() - 24 * 60 * 60 * 1000) }
+      }
+    })
     : 0;
 
   const currentStock = product ? product.currentStock : 100;

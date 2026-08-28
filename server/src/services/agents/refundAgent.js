@@ -69,86 +69,17 @@ EVALUATION RULES:
    - Case C: If within 30 days and <= $150.00, set autoRefundApproved = true, recommendedAction = "AUTO_REFUND_RESTOCK" (or SCRAP if damaged). Draft an email confirming full refund.
 3. Write a personalized, empathetic, customer-centric customerEmailDraft explicitly referencing the customer's actual words.`;
 
-  let decision;
-  try {
-    const completion = await callGroqWithFallback({
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
-      ],
-      response_format: { type: 'json_object' },
-      temperature: 0.2,
-      max_tokens: 1500
-    });
+  const completion = await callGroqWithFallback({
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPrompt }
+    ],
+    response_format: { type: 'json_object' },
+    temperature: 0.2,
+    max_tokens: 1500
+  });
 
-    decision = JSON.parse(completion.choices[0]?.message?.content || '{}');
-  } catch (err) {
-    logger.warn(`[Groq Refund Agent Fallback] ${err.message}`);
-    const msgLower = (customerMessage || '').trim().toLowerCase();
-    const isGreetingOrInquiry =
-      msgLower === 'hi' ||
-      msgLower === 'hello' ||
-      msgLower === 'hey' ||
-      msgLower === 'hi ' ||
-      msgLower === 'help' ||
-      msgLower.startsWith('good morning') ||
-      msgLower.startsWith('good afternoon') ||
-      (msgLower.length < 8 && !msgLower.includes('refund') && !msgLower.includes('break') && !msgLower.includes('crack') && !msgLower.includes('damage'));
-
-    const isUnderThreshold = numAmount <= 150;
-    const isWithinWindow = numDays <= 30;
-    const isDamaged = reason.toLowerCase().includes('damage') || msgLower.includes('crack') || msgLower.includes('broken') || msgLower.includes('torn');
-    const isExpired = numDays > 30;
-
-    let intent = 'REFUND_REQUEST';
-    let explanation = '';
-    let emailDraft = '';
-    let recAction = 'ESCALATE_TO_MANAGER';
-    let autoApprove = false;
-    let reqHuman = true;
-
-    if (isGreetingOrInquiry) {
-      intent = 'INQUIRY';
-      autoApprove = false;
-      reqHuman = false;
-      recAction = 'ANSWER_INQUIRY';
-      explanation = `The customer's message only says "${customerMessage}", which does not constitute a damage report or formal refund claim. Treated as a general inquiry.`;
-      emailDraft = `Hi ${customerName},\n\nThank you for reaching out! We received your message "${customerMessage}" and want to make sure we address any questions or concerns you may have about your recent order (${orderNumber}).\n\nPlease let us know how we can assist you—whether you have a question about your product, delivery, or account.\n\nWe look forward to hearing from you!\n\nBest regards,\nCustomer Support Team`;
-    } else if (isExpired) {
-      intent = isDamaged ? 'DAMAGE_CLAIM' : 'REFUND_REQUEST';
-      autoApprove = false;
-      reqHuman = true;
-      recAction = 'REJECT_EXPIRED';
-      explanation = `Order was purchased ${numDays} days ago, which exceeds our standard 30-day return policy window. Escalated for supervisor exception evaluation.`;
-      emailDraft = `Dear ${customerName},\n\nThank you for reaching out regarding Order #${orderNumber}.\n\nWe understand you are seeking a refund for your purchase ("${customerMessage}"). Our standard policy allows returns and refund claims within 30 days of purchase. As your order was completed ${numDays} days ago, our management team is reviewing your request to determine if a store credit or replacement exception can be made.\n\nBest regards,\nCustomer Support Team`;
-    } else if (!isUnderThreshold) {
-      intent = isDamaged ? 'DAMAGE_CLAIM' : 'REFUND_REQUEST';
-      autoApprove = false;
-      reqHuman = true;
-      recAction = 'ESCALATE_TO_MANAGER';
-      explanation = `Claim amount of $${numAmount.toFixed(2)} exceeds the automated threshold ($150.00). Flagged for manager review regarding "${customerMessage}".`;
-      emailDraft = `Dear ${customerName},\n\nThank you for contacting us regarding Order #${orderNumber}.\n\nWe have received your request stating: "${customerMessage}". Because your claim amount of $${numAmount.toFixed(2)} is categorized as high-value, our operations manager is reviewing your order details and photos to issue the appropriate authorization within 24 hours.\n\nBest regards,\nCustomer Support Team`;
-    } else {
-      intent = isDamaged ? 'DAMAGE_CLAIM' : 'REFUND_REQUEST';
-      autoApprove = true;
-      reqHuman = false;
-      recAction = isDamaged ? 'AUTO_REFUND_SCRAP' : 'AUTO_REFUND_RESTOCK';
-      explanation = `Claim ($${numAmount.toFixed(2)}, ${numDays} days elapsed) is within the 30-day policy and below the $150 threshold. Auto-approved.`;
-      emailDraft = `Dear ${customerName},\n\nThank you for contacting us regarding Order #${orderNumber}.\n\nWe have processed your refund request ("${customerMessage}") in full for $${numAmount.toFixed(2)}. The funds will return to your original payment method within 3-5 business days.\n\nBest regards,\nCustomer Support Team`;
-    }
-
-    decision = {
-      intent,
-      isEligible: !isExpired && !isGreetingOrInquiry,
-      autoRefundApproved: autoApprove,
-      requiresHumanApproval: reqHuman,
-      restockEligible: !isDamaged && !isGreetingOrInquiry,
-      confidenceScore: 0.95,
-      policyExplanation: explanation,
-      recommendedAction: recAction,
-      customerEmailDraft: emailDraft
-    };
-  }
+  const decision = JSON.parse(completion.choices[0]?.message?.content || '{}');
 
   const isAutoApproved = Boolean(decision.autoRefundApproved && numAmount <= 150 && !decision.requiresHumanApproval);
   const status = isAutoApproved ? 'APPROVED' : 'PENDING_APPROVAL';
@@ -173,13 +104,16 @@ EVALUATION RULES:
 
   // 2. If Auto-Approved and Restock Eligible -> Update Inventory
   if (isAutoApproved && decision.restockEligible && product) {
+    const prevStock = product.currentStock;
+    const nextStock = prevStock + 1;
     await product.increment('currentStock', { by: 1 });
     await InventoryTransaction.create({
       productId: product.id,
       type: 'RESTOCK',
       quantity: 1,
-      reason: `Customer Refund Auto-Restock (Order #${orderNumber})`,
-      performedBy: userId || null
+      previousStock: prevStock,
+      newStock: nextStock,
+      referenceId: `REFUND-${orderNumber}`
     });
   }
 

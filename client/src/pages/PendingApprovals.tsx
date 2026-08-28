@@ -70,24 +70,31 @@ export const PendingApprovals: React.FC = () => {
   const [simSendingEmail, setSimSendingEmail] = useState(false);
   const [simEmailStatus, setSimEmailStatus] = useState<string | null>(null);
 
+  const [productsList, setProductsList] = useState<any[]>([]);
   const [refundForm, setRefundForm] = useState({
     customerName: 'Alice Johnson',
     customerEmail: 'alice@example.com',
-    amount: 175.0,
-    daysSincePurchase: 14,
-    reason: 'Damaged in transit',
-    customerMessage: 'The package arrived completely crushed and the keyboard switches are broken.'
+    productId: 1,
+    amount: 75.0,
+    daysSincePurchase: 5,
+    reason: 'Wrong item ordered - unopened',
+    customerMessage: 'The box is completely unopened and in brand new condition, but I ordered the wrong model.'
   });
 
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [appRes, refRes] = await Promise.all([
+      const [appRes, refRes, prodRes] = await Promise.all([
         api.get('/approvals'),
-        api.get('/refunds?status=PENDING_APPROVAL')
+        api.get('/refunds?status=PENDING_APPROVAL'),
+        api.get('/products')
       ]);
       setApprovals(appRes.data || []);
       setRefunds(refRes.data || []);
+      setProductsList(prodRes.data || []);
+      if (prodRes.data?.length > 0 && !refundForm.productId) {
+        setRefundForm(prev => ({ ...prev, productId: prodRes.data[0].id }));
+      }
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to fetch pending approval queues');
     } finally {
@@ -620,6 +627,29 @@ export const PendingApprovals: React.FC = () => {
                       required
                     />
                   </div>
+                </div>
+
+                <div>
+                  <label className="text-slate-400 block mb-1 font-medium">Catalog Product Returned</label>
+                  <select
+                    value={refundForm.productId || ''}
+                    onChange={(e) => {
+                      const selectedId = Number(e.target.value);
+                      const prod = productsList.find(p => p.id === selectedId);
+                      setRefundForm({
+                        ...refundForm,
+                        productId: selectedId,
+                        amount: prod ? Number(prod.unitCost) : refundForm.amount
+                      });
+                    }}
+                    className="w-full bg-slate-950 border border-slate-700/80 rounded-xl p-2.5 text-slate-100 outline-none focus:border-blue-500"
+                  >
+                    {productsList.map(p => (
+                      <option key={p.id} value={p.id}>
+                        {p.name} (SKU: {p.sku}) — Stock: {p.currentStock} units | ${Number(p.unitCost).toFixed(2)}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
