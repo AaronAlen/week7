@@ -7,15 +7,19 @@ let transporter;
 const setupTransporter = async () => {
   if (transporter) return transporter;
 
-  if (env.EMAIL_HOST && env.EMAIL_USER && env.EMAIL_PASSWORD) {
+  const smtpPass = env.EMAIL_PASSWORD || (env.BREVO_API_KEY && env.BREVO_API_KEY.startsWith('xsmtpsib-') ? env.BREVO_API_KEY : null);
+  const smtpHost = env.EMAIL_HOST || (smtpPass && smtpPass.startsWith('xsmtpsib-') ? 'smtp-relay.brevo.com' : null);
+  const smtpUser = env.EMAIL_USER;
+
+  if (smtpHost && smtpUser && smtpPass) {
     try {
       transporter = nodemailer.createTransport({
-        host: env.EMAIL_HOST,
+        host: smtpHost,
         port: env.EMAIL_PORT || 587,
         secure: env.EMAIL_PORT === 465,
         auth: {
-          user: env.EMAIL_USER,
-          pass: env.EMAIL_PASSWORD
+          user: smtpUser,
+          pass: smtpPass
         },
         connectionTimeout: 10000,
         greetingTimeout: 10000,
@@ -37,13 +41,15 @@ const setupTransporter = async () => {
 
 /**
  * Universal email dispatcher:
- * 1. Checks Brevo HTTPS API (Port 443 - zero timeout, bypasses cloud port blocks)
- * 2. Falls back to Nodemailer SMTP (smtp-relay.brevo.com / Gmail)
+ * 1. Checks Brevo HTTPS API (xkeysib-... over Port 443 - zero timeout, bypasses cloud port blocks)
+ * 2. Falls back to Brevo SMTP or Nodemailer SMTP (smtp-relay.brevo.com / Gmail)
  */
 async function dispatchEmail({ to, subject, html, text }) {
-  const brevoApiKey = env.BREVO_API_KEY || (env.EMAIL_PASSWORD && env.EMAIL_PASSWORD.startsWith('xkeysib-') ? env.EMAIL_PASSWORD : null);
+  const brevoApiKey = env.BREVO_API_KEY && env.BREVO_API_KEY.startsWith('xkeysib-')
+    ? env.BREVO_API_KEY
+    : (env.EMAIL_PASSWORD && env.EMAIL_PASSWORD.startsWith('xkeysib-') ? env.EMAIL_PASSWORD : null);
 
-  // 1. If Brevo API Key is present, send directly over HTTPS (Port 443) -> 100% bypasses cloud SMTP port blocks!
+  // 1. If Brevo REST API Key (xkeysib-...) is present, send directly over HTTPS (Port 443) -> 100% bypasses cloud SMTP port blocks!
   if (brevoApiKey) {
     try {
       const senderEmail = env.EMAIL_USER || env.EMAIL_FROM?.match(/<([^>]+)>/)?.[1] || 'sourcing@stockpilot.io';
@@ -77,7 +83,7 @@ async function dispatchEmail({ to, subject, html, text }) {
     }
   }
 
-  // 2. Nodemailer SMTP Fallback
+  // 2. Nodemailer SMTP Fallback (e.g. smtp-relay.brevo.com or smtp.gmail.com)
   const mailer = await setupTransporter();
   const info = await mailer.sendMail({
     from: env.EMAIL_FROM,
