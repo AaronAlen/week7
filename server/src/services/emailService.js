@@ -51,36 +51,34 @@ async function dispatchEmail({ to, subject, html, text }) {
 
   // 1. If Brevo REST API Key (xkeysib-...) is present, send directly over HTTPS (Port 443) -> 100% bypasses cloud SMTP port blocks!
   if (brevoApiKey) {
-    try {
-      const senderEmail = env.EMAIL_USER || env.EMAIL_FROM?.match(/<([^>]+)>/)?.[1] || 'sourcing@stockpilot.io';
-      const senderName = env.EMAIL_FROM?.replace(/<[^>]+>/, '').replace(/"/g, '').trim() || 'StockPilot';
+    const senderEmail = env.EMAIL_USER || 'aaronbca123@gmail.com';
+    const senderName = 'StockPilot Operations';
 
-      const response = await fetch('https://api.brevo.com/v3/smtp/email', {
-        method: 'POST',
-        headers: {
-          'accept': 'application/json',
-          'api-key': brevoApiKey,
-          'content-type': 'application/json'
-        },
-        body: JSON.stringify({
-          sender: { name: senderName, email: senderEmail },
-          to: [{ email: to }],
-          subject,
-          htmlContent: html,
-          textContent: text || html.replace(/<[^>]+>/g, ' ')
-        })
-      });
+    const response = await fetch('https://api.brevo.com/v3/smtp/email', {
+      method: 'POST',
+      headers: {
+        'accept': 'application/json',
+        'api-key': brevoApiKey,
+        'content-type': 'application/json'
+      },
+      body: JSON.stringify({
+        sender: { name: senderName, email: senderEmail },
+        to: [{ email: to }],
+        subject,
+        htmlContent: html,
+        textContent: text || html.replace(/<[^>]+>/g, ' ')
+      })
+    });
 
-      const data = await response.json();
-      if (!response.ok) {
-        throw new Error(data.message || `Brevo API returned error status ${response.status}`);
-      }
-
-      logger.info(`📧 Email dispatched via Brevo HTTPS API to ${to}: ${data.messageId || 'Success'}`);
-      return { success: true, messageId: data.messageId || 'brevo_sent', recipient: to };
-    } catch (apiErr) {
-      logger.warn(`📧 Brevo API dispatch error: ${apiErr.message}. Attempting SMTP fallback...`);
+    const data = await response.json();
+    if (!response.ok) {
+      const errDetail = data.message || `Brevo API error ${response.status}`;
+      logger.error(`❌ Brevo API Error: ${errDetail}`);
+      throw new Error(`Brevo Error: ${errDetail}`);
     }
+
+    logger.info(`📧 Email dispatched via Brevo HTTPS API to ${to}: ${data.messageId || 'Success'}`);
+    return { success: true, messageId: data.messageId || 'brevo_sent', recipient: to };
   }
 
   // 2. Nodemailer SMTP Fallback (e.g. smtp-relay.brevo.com or smtp.gmail.com)
