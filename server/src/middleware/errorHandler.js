@@ -18,7 +18,7 @@ export const errorHandler = (err, req, res, next) => {
   }
 
   res.status(err.status || 500).json({
-    error: err.name || 'InternalServerError',
+    error: err.message || 'InternalServerError',
     message: err.message || 'An unexpected error occurred on the server.'
   });
 };

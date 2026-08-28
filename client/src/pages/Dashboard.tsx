@@ -91,8 +91,8 @@ export const Dashboard: React.FC = () => {
         setAiAnswer('Analysis completed but no response was returned.');
       }
     } catch (err: any) {
-      const serverErr = err.response?.data?.error || err.response?.data?.message || err.message || 'Failed to analyze inventory data. Please try again.';
-      setAiAnswer(`⚠️ Error: ${serverErr}`);
+      const serverErr = err.response?.data?.message || err.response?.data?.error || err.message || 'Failed to analyze inventory data. Please try again.';
+      setAiAnswer(`⚠️ ${serverErr}`);
     } finally {
       setAiLoading(false);
     }
