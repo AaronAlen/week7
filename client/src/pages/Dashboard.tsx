@@ -15,11 +15,72 @@ import {
   Zap,
   Send,
   TrendingUp,
-  BrainCircuit
+  BrainCircuit,
+  PieChart as PieChartIcon,
+  BarChart3,
+  Layers
 } from 'lucide-react';
+import {
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip as RechartsTooltip,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Legend,
+  AreaChart,
+  Area
+} from 'recharts';
 import { Link } from 'react-router-dom';
 import { useAppSelector } from '../store/index.ts';
 import { FormattedAiResponse } from '../components/FormattedAiResponse.tsx';
+
+/**
+ * Animated Increasing Number Counter Component
+ */
+const AnimatedCounter: React.FC<{ value: number; prefix?: string; suffix?: string; decimals?: number; duration?: number }> = ({
+  value,
+  prefix = '',
+  suffix = '',
+  decimals = 0,
+  duration = 1000
+}) => {
+  const [count, setCount] = useState<number>(0);
+
+  useEffect(() => {
+    let startTimestamp: number | null = null;
+    const startValue = 0;
+    const endValue = value;
+
+    const step = (timestamp: number) => {
+      if (!startTimestamp) startTimestamp = timestamp;
+      const progress = Math.min((timestamp - startTimestamp) / duration, 1);
+      const easeOut = 1 - Math.pow(1 - progress, 3);
+      setCount(startValue + (endValue - startValue) * easeOut);
+
+      if (progress < 1) {
+        window.requestAnimationFrame(step);
+      }
+    };
+
+    window.requestAnimationFrame(step);
+  }, [value, duration]);
+
+  return (
+    <span>
+      {prefix}
+      {count.toLocaleString('en-US', {
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals
+      })}
+      {suffix}
+    </span>
+  );
+};
 
 export const Dashboard: React.FC = () => {
   const user = useAppSelector((state) => state.auth.user);
@@ -100,6 +161,60 @@ export const Dashboard: React.FC = () => {
 
   const lowStockProducts = products.filter(p => p.currentStock < p.safetyThreshold);
   const totalValue = products.reduce((sum, p) => sum + (p.currentStock * Number(p.unitCost)), 0);
+
+  // Visual Chart View Modes
+  const [chartMode, setChartMode] = useState<'CAPACITY' | 'VALUATION'>('CAPACITY');
+
+  // Chart 1: Bar / Area Chart Data
+  const chartProductData = products.slice(0, 8).map((p) => ({
+    name: p.name.length > 14 ? p.name.substring(0, 12) + '…' : p.name,
+    fullName: p.name,
+    sku: p.sku,
+    'Current Stock': p.currentStock,
+    'Safety Buffer': p.safetyThreshold,
+    'Target Capacity': p.targetStock,
+    'Inventory Value ($)': Number((p.currentStock * Number(p.unitCost)).toFixed(2))
+  }));
+
+  // Chart 2: Inventory Health Pie Chart Data
+  const normalStockCount = products.filter(p => p.currentStock >= p.safetyThreshold && p.currentStock <= p.targetStock).length;
+  const lowStockCount = products.filter(p => p.currentStock > 0 && p.currentStock < p.safetyThreshold).length;
+  const outOfStockCount = products.filter(p => p.currentStock === 0).length;
+  const surplusStockCount = products.filter(p => p.currentStock > p.targetStock).length;
+
+  const pieHealthData = [
+    { name: 'Optimal Stock', value: normalStockCount || (products.length === 0 ? 1 : 0), color: '#10b981' },
+    { name: 'Low Stock Buffer', value: lowStockCount, color: '#f59e0b' },
+    { name: 'Out of Stock', value: outOfStockCount, color: '#f43f5e' },
+    { name: 'Surplus Stock', value: surplusStockCount, color: '#6366f1' }
+  ].filter(d => d.value > 0);
+
+  // Custom Glass Tooltip for Charts
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-slate-900/95 border border-slate-700 p-3 rounded-xl shadow-2xl backdrop-blur-md text-xs space-y-1 z-50">
+          <p className="font-bold text-white mb-1.5 border-b border-slate-800 pb-1">
+            {payload[0]?.payload?.fullName || label}
+          </p>
+          {payload.map((item: any, idx: number) => (
+            <div key={idx} className="flex items-center justify-between space-x-3">
+              <span className="flex items-center space-x-1.5" style={{ color: item.color || item.fill }}>
+                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: item.color || item.fill }} />
+                <span className="text-slate-300">{item.name}:</span>
+              </span>
+              <span className="font-mono font-bold text-white">
+                {typeof item.value === 'number' && item.name.includes('$')
+                  ? `$${item.value.toLocaleString()}`
+                  : item.value}
+              </span>
+            </div>
+          ))}
+        </div>
+      );
+    }
+    return null;
+  };
 
   if (loading) {
     return (
@@ -234,61 +349,246 @@ export const Dashboard: React.FC = () => {
         )}
       </div>
 
-      {/* Metrics Row */}
+      {/* Animated Metrics Row */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg relative overflow-hidden">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-lg relative overflow-hidden transition hover:border-blue-500/50">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Total Products</span>
-            <div className="w-9 h-9 rounded-xl bg-blue-600/10 border border-blue-500/20 flex items-center justify-center text-blue-400">
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Total Products</span>
+            <div className="w-9 h-9 rounded-xl bg-blue-500/10 border border-blue-500/20 flex items-center justify-center text-blue-600 dark:text-blue-400">
               <Package className="w-5 h-5" />
             </div>
           </div>
           <div className="mt-3">
-            <span className="text-2xl font-bold text-white">{products.length}</span>
-            <p className="text-xs text-slate-400 mt-1">Active Catalog Items</p>
+            <span className="text-2xl font-bold text-slate-900 dark:text-white">
+              <AnimatedCounter value={products.length} duration={1000} />
+            </span>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Active Catalog Items</p>
           </div>
         </div>
 
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg relative overflow-hidden">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-lg relative overflow-hidden transition hover:border-amber-500/50">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Low Stock Alerts</span>
-            <div className="w-9 h-9 rounded-xl bg-amber-600/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Low Stock Alerts</span>
+            <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-600 dark:text-amber-400">
               <AlertTriangle className="w-5 h-5" />
             </div>
           </div>
           <div className="mt-3">
-            <span className={`text-2xl font-bold ${lowStockProducts.length > 0 ? 'text-amber-400' : 'text-emerald-400'}`}>
-              {lowStockProducts.length}
+            <span className={`text-2xl font-bold ${lowStockProducts.length > 0 ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
+              <AnimatedCounter value={lowStockProducts.length} duration={1000} />
             </span>
-            <p className="text-xs text-slate-400 mt-1">Below Safety Buffer</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Below Safety Buffer</p>
           </div>
         </div>
 
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg relative overflow-hidden">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-lg relative overflow-hidden transition hover:border-indigo-500/50">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Pending Approvals</span>
-            <div className="w-9 h-9 rounded-xl bg-indigo-600/10 border border-indigo-500/20 flex items-center justify-center text-indigo-400">
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Pending Approvals</span>
+            <div className="w-9 h-9 rounded-xl bg-indigo-500/10 border border-indigo-500/20 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
               <Clock className="w-5 h-5" />
             </div>
           </div>
           <div className="mt-3">
-            <span className={`text-2xl font-bold ${approvals.length > 0 ? 'text-indigo-400' : 'text-slate-400'}`}>
-              {approvals.length}
+            <span className={`text-2xl font-bold ${approvals.length > 0 ? 'text-indigo-600 dark:text-indigo-400' : 'text-slate-500 dark:text-slate-400'}`}>
+              <AnimatedCounter value={approvals.length} duration={1000} />
             </span>
-            <p className="text-xs text-slate-400 mt-1">Orders &gt; $1,000</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Orders &gt; $1,000</p>
           </div>
         </div>
 
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5 shadow-lg relative overflow-hidden">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-lg relative overflow-hidden transition hover:border-emerald-500/50">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Inventory Value</span>
-            <div className="w-9 h-9 rounded-xl bg-emerald-600/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Inventory Value</span>
+            <div className="w-9 h-9 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
               <DollarSign className="w-5 h-5" />
             </div>
           </div>
           <div className="mt-3">
-            <span className="text-2xl font-bold text-emerald-400">${totalValue.toLocaleString('en-US', { minimumFractionDigits: 2 })}</span>
-            <p className="text-xs text-slate-400 mt-1">Total Valuation</p>
+            <span className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
+              <AnimatedCounter value={totalValue} prefix="$" decimals={2} duration={1400} />
+            </span>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Total Asset Valuation</p>
+          </div>
+        </div>
+      </div>
+
+      {/* VISUAL ANALYTICS SECTION: Animated Graph & Pie Chart */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left 2 Cols: Animated Increasing Bar / Area Chart */}
+        <div className="lg:col-span-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-xl space-y-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100 dark:border-slate-800">
+            <div>
+              <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center space-x-2">
+                <BarChart3 className="w-4 h-4 text-blue-600 dark:text-blue-400" />
+                <span>Stock Capacity & Threshold Analysis</span>
+              </h3>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Live comparison of current stock levels vs safety buffers and target capacity</p>
+            </div>
+
+            {/* View Mode Toggle */}
+            <div className="flex items-center space-x-1 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700/80 text-xs font-semibold">
+              <button
+                onClick={() => setChartMode('CAPACITY')}
+                className={`px-3 py-1.5 rounded-lg transition ${
+                  chartMode === 'CAPACITY'
+                    ? 'bg-white dark:bg-slate-900 text-blue-600 dark:text-blue-400 shadow-sm'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                Stock Units
+              </button>
+              <button
+                onClick={() => setChartMode('VALUATION')}
+                className={`px-3 py-1.5 rounded-lg transition ${
+                  chartMode === 'VALUATION'
+                    ? 'bg-white dark:bg-slate-900 text-emerald-600 dark:text-emerald-400 shadow-sm'
+                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                }`}
+              >
+                Valuation ($)
+              </button>
+            </div>
+          </div>
+
+          <div className="h-[280px] w-full pt-2">
+            {chartMode === 'CAPACITY' ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={chartProductData} margin={{ top: 10, right: 10, left: -15, bottom: 25 }}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3} />
+                  <XAxis
+                    dataKey="name"
+                    stroke="#94a3b8"
+                    fontSize={11}
+                    tickLine={false}
+                    angle={-20}
+                    textAnchor="end"
+                  />
+                  <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} />
+                  <RechartsTooltip content={<CustomTooltip />} />
+                  <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '15px' }} />
+                  <Bar
+                    dataKey="Current Stock"
+                    fill="#3b82f6"
+                    radius={[6, 6, 0, 0]}
+                    isAnimationActive={true}
+                    animationDuration={1500}
+                    animationEasing="ease-out"
+                  />
+                  <Bar
+                    dataKey="Safety Buffer"
+                    fill="#f59e0b"
+                    radius={[6, 6, 0, 0]}
+                    isAnimationActive={true}
+                    animationDuration={1500}
+                    animationEasing="ease-out"
+                  />
+                  <Bar
+                    dataKey="Target Capacity"
+                    fill="#10b981"
+                    radius={[6, 6, 0, 0]}
+                    isAnimationActive={true}
+                    animationDuration={1500}
+                    animationEasing="ease-out"
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={chartProductData} margin={{ top: 10, right: 10, left: 10, bottom: 25 }}>
+                  <defs>
+                    <linearGradient id="valGrad" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
+                      <stop offset="95%" stopColor="#10b981" stopOpacity={0.0} />
+                    </linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#334155" opacity={0.3} />
+                  <XAxis
+                    dataKey="name"
+                    stroke="#94a3b8"
+                    fontSize={11}
+                    tickLine={false}
+                    angle={-20}
+                    textAnchor="end"
+                  />
+                  <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} tickFormatter={(v) => `$${v}`} />
+                  <RechartsTooltip content={<CustomTooltip />} />
+                  <Area
+                    type="monotone"
+                    dataKey="Inventory Value ($)"
+                    stroke="#10b981"
+                    strokeWidth={2.5}
+                    fillOpacity={1}
+                    fill="url(#valGrad)"
+                    isAnimationActive={true}
+                    animationDuration={1500}
+                    animationEasing="ease-out"
+                  />
+                </AreaChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </div>
+
+        {/* Right 1 Col: Animated Increasing Donut / Pie Chart */}
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 shadow-xl flex flex-col justify-between space-y-4">
+          <div className="pb-3 border-b border-slate-100 dark:border-slate-800">
+            <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center space-x-2">
+              <PieChartIcon className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+              <span>Inventory Health Distribution</span>
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Proportional breakdown of stock safety states</p>
+          </div>
+
+          <div className="h-[210px] w-full relative flex items-center justify-center">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={pieHealthData}
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={55}
+                  outerRadius={85}
+                  paddingAngle={4}
+                  dataKey="value"
+                  isAnimationActive={true}
+                  animationDuration={1500}
+                  animationEasing="ease-out"
+                >
+                  {pieHealthData.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} stroke="#0f172a" strokeWidth={2} />
+                  ))}
+                </Pie>
+                <RechartsTooltip
+                  formatter={(val: any, name: any) => [`${val} product(s)`, name]}
+                  contentStyle={{
+                    backgroundColor: '#0f172a',
+                    borderColor: '#334155',
+                    borderRadius: '12px',
+                    color: '#fff',
+                    fontSize: '12px'
+                  }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+
+            {/* Center Donut Statistic */}
+            <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
+              <span className="text-xl font-extrabold text-slate-900 dark:text-white">
+                <AnimatedCounter value={products.length} duration={1200} />
+              </span>
+              <span className="text-[10px] uppercase tracking-wider font-semibold text-slate-400">Total Items</span>
+            </div>
+          </div>
+
+          {/* Custom Pie Legend Chips */}
+          <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-100 dark:border-slate-800 text-[11px]">
+            {pieHealthData.map((item) => (
+              <div key={item.name} className="flex items-center space-x-1.5 p-1.5 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-800">
+                <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: item.color }} />
+                <span className="text-slate-700 dark:text-slate-300 truncate font-medium">{item.name}:</span>
+                <span className="font-bold text-slate-900 dark:text-white ml-auto">{item.value}</span>
+              </div>
+            ))}
           </div>
         </div>
       </div>
