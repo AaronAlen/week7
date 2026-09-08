@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { useAppSelector } from '../store/index.js';
+import { useAppSelector } from '../store/index.ts';
 import { UserRole } from '../types/index.ts';
 import {
   LayoutDashboard,

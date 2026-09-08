@@ -9,13 +9,39 @@
  * 2. Reducer parameters are concise: `(state, action)` instead of `(state, action: PayloadAction<...>)`.
  */
 
-import { createSlice } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
+import api from '../../../services/api.ts';
 
 const initialState = {
   transactions: [],
   loading: false,
   error: null
 };
+
+// Async Thunks
+export const fetchTransactions = createAsyncThunk(
+  'inventory/fetchTransactions',
+  async (limit = 50, { rejectWithValue }) => {
+    try {
+      const res = await api.get(`/inventory/transactions?limit=${limit}`);
+      return res.data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.error || err.message || 'Failed to fetch inventory transactions');
+    }
+  }
+);
+
+export const adjustStock = createAsyncThunk(
+  'inventory/adjustStock',
+  async (payload, { rejectWithValue }) => {
+    try {
+      const res = await api.post('/inventory/adjust', payload);
+      return res.data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.error || err.message || 'Failed to adjust stock');
+    }
+  }
+);
 
 export const inventorySlice = createSlice({
   name: 'inventory',
@@ -43,6 +69,29 @@ export const inventorySlice = createSlice({
       state.error = action.payload;
       state.loading = false;
     }
+  },
+  extraReducers: (builder) => {
+    // fetchTransactions
+    builder.addCase(fetchTransactions.pending, (state) => {
+      state.loading = true;
+      state.error = null;
+    });
+    builder.addCase(fetchTransactions.fulfilled, (state, action) => {
+      state.transactions = action.payload;
+      state.loading = false;
+      state.error = null;
+    });
+    builder.addCase(fetchTransactions.rejected, (state, action) => {
+      state.loading = false;
+      state.error = action.payload;
+    });
+
+    // adjustStock
+    builder.addCase(adjustStock.fulfilled, (state, action) => {
+      if (action.payload?.transaction) {
+        state.transactions.unshift(action.payload.transaction);
+      }
+    });
   }
 });
 

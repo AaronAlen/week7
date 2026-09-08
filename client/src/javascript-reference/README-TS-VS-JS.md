@@ -111,9 +111,59 @@ export const { setCredentials, logout } = authSlice.actions;
 export default authSlice.reducer;
 ```
 
-### 💡 What changed between JS and TS?
-1. **`interface User` & `interface AuthState`**: TypeScript uses these to provide autocomplete when typing `state.user.name` in your editor.
-2. **`PayloadAction<{ user: User; accessToken: string }>`**: Tells TypeScript that when calling `dispatch(setCredentials(...))`, you must pass an object containing `user` and `accessToken`.
+---
+
+## 2.1 Side-by-Side Comparison: Redux Async Thunks (`createAsyncThunk`)
+
+Both JavaScript and TypeScript slices use `createAsyncThunk` to handle asynchronous API calls.
+
+### 🟡 JavaScript Version
+```javascript
+export const fetchProducts = createAsyncThunk(
+  'products/fetchProducts',
+  async (_, { rejectWithValue }) => {
+    try {
+      const res = await api.get('/products');
+      return res.data;
+    } catch (err) {
+      return rejectWithValue(err.response?.data?.error || 'Failed to fetch products');
+    }
+  }
+);
+```
+
+### 🔵 TypeScript Version
+```typescript
+export const fetchProducts = createAsyncThunk(
+  'products/fetchProducts',
+  async (_, { rejectWithValue }) => {
+    try {
+      const res = await api.get<ProductItem[]>('/products'); // Typed Axios response
+      return res.data;
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.error || 'Failed to fetch products');
+    }
+  }
+);
+```
+
+### 💡 Handling Lifecycle in `extraReducers`:
+In both languages, `extraReducers` handles `pending`, `fulfilled`, and `rejected` states identically:
+```javascript
+extraReducers: (builder) => {
+  builder.addCase(fetchProducts.pending, (state) => {
+    state.loading = true;
+  });
+  builder.addCase(fetchProducts.fulfilled, (state, action) => {
+    state.items = action.payload;
+    state.loading = false;
+  });
+  builder.addCase(fetchProducts.rejected, (state, action) => {
+    state.loading = false;
+    state.error = action.payload;
+  });
+}
+```
 
 ---
 

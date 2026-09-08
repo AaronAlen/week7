@@ -10,6 +10,8 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.tsx';
 import { useSocket } from '../context/SocketContext.tsx';
+import { useAppDispatch, useAppSelector } from '../store/index.ts';
+import { fetchRestockRequests } from '../store/slices/restocksSlice.ts';
 
 interface PurchaseOrderSummary {
   id: number;
@@ -31,34 +33,25 @@ interface RestockRequestRecord {
 }
 
 export const RestockRequests: React.FC = () => {
-  const [restocks, setRestocks] = useState<RestockRequestRecord[]>([]);
-  const [loading, setLoading] = useState(true);
+  const dispatch = useAppDispatch();
+  const { requests, loading } = useAppSelector((state) => state.restocks);
+  const restocks = requests as unknown as RestockRequestRecord[];
   const [actionId, setActionId] = useState<number | null>(null);
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const { hasRole } = useAuth();
   const socket = useSocket();
 
-  const fetchRestocks = async () => {
-    try {
-      const res = await api.get('/restocks');
-      setRestocks(res.data || []);
-    } catch (err) {
-      console.error('Failed to fetch restocks', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    fetchRestocks();
+    dispatch(fetchRestockRequests());
     if (socket) {
-      socket.on('data_updated', fetchRestocks);
+      const onUpdate = () => { dispatch(fetchRestockRequests()); };
+      socket.on('data_updated', onUpdate);
       return () => {
-        socket.off('data_updated', fetchRestocks);
+        socket.off('data_updated', onUpdate);
       };
     }
-  }, [socket]);
+  }, [dispatch, socket]);
 
   const handleReceiveStock = async (restockRequestId: number) => {
     setActionId(restockRequestId);
@@ -67,7 +60,7 @@ export const RestockRequests: React.FC = () => {
     try {
       const res = await api.post(`/restocks/${restockRequestId}/receive`);
       setMessage(res.data.message);
-      fetchRestocks();
+      dispatch(fetchRestockRequests());
     } catch (err: any) {
       setError(err.response?.data?.error || err.response?.data?.message || 'Failed to receive stock');
     } finally {
@@ -82,7 +75,7 @@ export const RestockRequests: React.FC = () => {
     try {
       await api.post(`/restocks/${restockRequestId}/retry`);
       setMessage('Restock evaluation re-triggered successfully.');
-      fetchRestocks();
+      dispatch(fetchRestockRequests());
     } catch (err: any) {
       setError(err.response?.data?.error || 'Failed to retry restock request');
     } finally {
@@ -107,7 +100,7 @@ export const RestockRequests: React.FC = () => {
           <p className="text-sm text-slate-400">Track automated purchase orders, receive supplier shipments, and manage replenishment</p>
         </div>
         <button
-          onClick={fetchRestocks}
+          onClick={() => dispatch(fetchRestockRequests())}
           className="flex items-center space-x-2 bg-slate-800 hover:bg-slate-700 text-slate-300 px-3.5 py-2 rounded-xl text-sm border border-slate-700 transition"
         >
           <RefreshCw className="w-4 h-4" />

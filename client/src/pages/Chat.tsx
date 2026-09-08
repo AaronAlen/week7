@@ -3,60 +3,32 @@ import api from '../services/api.ts';
 import { useSocketContext } from '../context/SocketContext.tsx';
 import { useAuth } from '../context/AuthContext.tsx';
 import { MessageSquare, Send, Radio } from 'lucide-react';
-
-interface ChatUser {
-  id: number;
-  name: string;
-  email: string;
-  role: string;
-}
-
-interface MessageItem {
-  id: number;
-  senderId: number;
-  message: string;
-  createdAt: string;
-  sender?: ChatUser;
-}
+import { useAppDispatch, useAppSelector } from '../store/index.ts';
+import { fetchChatMessages, sendChatMessage, addMessage, ChatMessageItem } from '../store/slices/chatSlice.ts';
 
 export const Chat: React.FC = () => {
-  const [messages, setMessages] = useState<MessageItem[]>([]);
+  const dispatch = useAppDispatch();
+  const { messages, loading, sending } = useAppSelector((state) => state.chat);
   const [newMessage, setNewMessage] = useState<string>('');
-  const [loading, setLoading] = useState<boolean>(true);
-  const [sending, setSending] = useState<boolean>(false);
   const { socket, isConnected } = useSocketContext();
   const { user } = useAuth();
   const chatEndRef = useRef<HTMLDivElement>(null);
 
-  const fetchHistory = async () => {
-    try {
-      const res = await api.get<MessageItem[]>('/chat/messages?limit=100');
-      setMessages(res.data);
-    } catch (err) {
-      console.error('Failed to load chat history', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    fetchHistory();
-  }, []);
+    dispatch(fetchChatMessages(100));
+  }, [dispatch]);
 
   // Socket.IO: receive real-time messages from other users
   useEffect(() => {
     if (!socket) return;
 
-    const handleIncoming = (msg: MessageItem) => {
-      setMessages(prev => {
-        if (prev.some(m => m.id === msg.id)) return prev;
-        return [...prev, msg];
-      });
+    const handleIncoming = (msg: ChatMessageItem) => {
+      dispatch(addMessage(msg));
     };
 
     socket.on('chat_message', handleIncoming);
     return () => { socket.off('chat_message', handleIncoming); };
-  }, [socket]);
+  }, [socket, dispatch]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -68,22 +40,7 @@ export const Chat: React.FC = () => {
     if (!text || sending) return;
 
     setNewMessage('');
-    setSending(true);
-    try {
-      // POST to REST → server saves to DB AND broadcasts via io.emit to all sockets
-      const res = await api.post<MessageItem>('/chat/messages', { message: text });
-      // Append locally (socket will also fire for THIS client — dedup prevents double)
-      if (res.data) {
-        setMessages(prev => {
-          if (prev.some(m => m.id === res.data.id)) return prev;
-          return [...prev, res.data];
-        });
-      }
-    } catch (err) {
-      console.error('Failed to send message', err);
-    } finally {
-      setSending(false);
-    }
+    dispatch(sendChatMessage(text));
   };
 
   if (loading) {

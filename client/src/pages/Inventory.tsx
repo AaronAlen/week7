@@ -9,40 +9,36 @@ import {
   AlertCircle
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext.tsx';
+import { useAppDispatch, useAppSelector } from '../store/index.ts';
+import { fetchProducts } from '../store/slices/productsSlice.ts';
+import { fetchTransactions } from '../store/slices/inventorySlice.ts';
 
 export const Inventory: React.FC = () => {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [transactions, setTransactions] = useState<InventoryTransaction[]>([]);
+  const dispatch = useAppDispatch();
+  const { items: products } = useAppSelector((state) => state.products);
+  const { transactions, loading } = useAppSelector((state) => state.inventory);
   const [selectedProduct, setSelectedProduct] = useState<string>('');
   const [sellQty, setSellQty] = useState<number>(1);
   const [refId, setRefId] = useState<string>('POS-ORDER-101');
   const [submitting, setSubmitting] = useState<boolean>(false);
   const [message, setMessage] = useState<string>('');
   const [error, setError] = useState<string>('');
-  const [loading, setLoading] = useState<boolean>(true);
   const { hasRole } = useAuth();
 
   const fetchData = async () => {
-    try {
-      const [prodRes, txRes] = await Promise.all([
-        api.get<Product[]>('/products'),
-        api.get<InventoryTransaction[]>('/inventory/transactions?limit=50')
-      ]);
-      setProducts(prodRes.data);
-      setTransactions(txRes.data);
-      if (prodRes.data.length > 0 && !selectedProduct) {
-        setSelectedProduct(prodRes.data[0].id.toString());
-      }
-    } catch (err) {
-      console.error('Failed to load inventory data', err);
-    } finally {
-      setLoading(false);
-    }
+    dispatch(fetchProducts());
+    dispatch(fetchTransactions(50));
   };
 
   useEffect(() => {
     fetchData();
   }, []);
+
+  useEffect(() => {
+    if (products.length > 0 && !selectedProduct) {
+      setSelectedProduct(products[0].id.toString());
+    }
+  }, [products, selectedProduct]);
 
   const handleSale = async (e: React.FormEvent) => {
     e.preventDefault();

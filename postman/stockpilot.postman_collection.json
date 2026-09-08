@@ -1,33 +1,25 @@
 {
   "info": {
-    "name": "StockPilot REST API Collection",
-    "description": "Postman API Collection for StockPilot Intelligent Inventory Restock System with LangGraph HITL Workflow Agent",
+    "name": "StockPilot REST API Collection (42 Endpoints)",
+    "description": "Comprehensive Postman API Collection for StockPilot Autonomous Inventory Restock, AI Agents, Procurement & Vendor Intelligence System.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
     { "key": "baseUrl", "value": "http://localhost:5000/api" },
+    { "key": "deploymentUrl", "value": "https://week7-rwe2.onrender.com/api" },
     { "key": "accessToken", "value": "" },
     { "key": "refreshToken", "value": "" },
-    { "key": "threadId", "value": "" }
+    { "key": "threadId", "value": "restock-prod-2-1787550000000" },
+    { "key": "productId", "value": "1" },
+    { "key": "refundId", "value": "1" },
+    { "key": "evalId", "value": "1" }
   ],
   "item": [
     {
-      "name": "Authentication",
+      "name": "1. Authentication",
       "item": [
         {
-          "name": "Register Admin",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"name\": \"System Admin\",\n  \"email\": \"admin@stockpilot.io\",\n  \"password\": \"password123\",\n  \"role\": \"ADMIN\"\n}"
-            },
-            "url": { "raw": "{{baseUrl}}/auth/register", "host": ["{{baseUrl}}"], "path": ["auth", "register"] }
-          }
-        },
-        {
-          "name": "Login",
+          "name": "Login (Admin)",
           "event": [
             {
               "listen": "test",
@@ -36,6 +28,7 @@
                   "const res = pm.response.json();",
                   "if (res.accessToken) {",
                   "    pm.collectionVariables.set('accessToken', res.accessToken);",
+                  "    console.log('JWT accessToken saved successfully');",
                   "}"
                 ],
                 "type": "text/javascript"
@@ -57,17 +50,21 @@
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
-            },
             "url": { "raw": "{{baseUrl}}/auth/refresh", "host": ["{{baseUrl}}"], "path": ["auth", "refresh"] }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/auth/logout", "host": ["{{baseUrl}}"], "path": ["auth", "logout"] }
           }
         }
       ]
     },
     {
-      "name": "Products",
+      "name": "2. Products",
       "item": [
         {
           "name": "Get Products Catalog",
@@ -75,6 +72,14 @@
             "method": "GET",
             "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
             "url": { "raw": "{{baseUrl}}/products", "host": ["{{baseUrl}}"], "path": ["products"] }
+          }
+        },
+        {
+          "name": "Get Product by ID",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/products/{{productId}}", "host": ["{{baseUrl}}"], "path": ["products", "{{productId}}"] }
           }
         },
         {
@@ -87,18 +92,55 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Smart LED Desk Lamp\",\n  \"description\": \"Dimmable LED desk lamp with wireless smartphone charging pad.\",\n  \"sku\": \"SKU-LAMP-010\",\n  \"currentStock\": 5,\n  \"safetyThreshold\": 15,\n  \"targetStock\": 40,\n  \"unitCost\": 35.00,\n  \"supplierName\": \"Lumina Tech\",\n  \"supplierEmail\": \"orders@luminatech.com\"\n}"
+              "raw": "{\n  \"name\": \"Smart RGB Desk Lamp\",\n  \"description\": \"Dimmable LED desk lamp with wireless smartphone charging pad.\",\n  \"sku\": \"SKU-LAMP-010\",\n  \"currentStock\": 8,\n  \"safetyThreshold\": 15,\n  \"targetStock\": 50,\n  \"unitCost\": 35.00,\n  \"supplierName\": \"Lumina Tech Ltd\",\n  \"supplierEmail\": \"orders@luminatech.com\",\n  \"supplierPhone\": \"+15550192834\"\n}"
             },
             "url": { "raw": "{{baseUrl}}/products", "host": ["{{baseUrl}}"], "path": ["products"] }
+          }
+        },
+        {
+          "name": "Update Product",
+          "request": {
+            "method": "PUT",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"unitCost\": 38.50,\n  \"safetyThreshold\": 18,\n  \"targetStock\": 55\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/products/{{productId}}", "host": ["{{baseUrl}}"], "path": ["products", "{{productId}}"] }
+          }
+        },
+        {
+          "name": "Delete Product",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/products/{{productId}}", "host": ["{{baseUrl}}"], "path": ["products", "{{productId}}"] }
+          }
+        },
+        {
+          "name": "Upload Product Image",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "image", "type": "file", "src": "" }
+              ]
+            },
+            "url": { "raw": "{{baseUrl}}/products/{{productId}}/image", "host": ["{{baseUrl}}"], "path": ["products", "{{productId}}", "image"] }
           }
         }
       ]
     },
     {
-      "name": "Inventory & Sales",
+      "name": "3. Inventory & Sales",
       "item": [
         {
-          "name": "Record Sale (Stock Reduction)",
+          "name": "Record Sale (Atomic Deduction)",
           "request": {
             "method": "POST",
             "header": [
@@ -107,26 +149,13 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"productId\": 1,\n  \"quantity\": 5,\n  \"referenceId\": \"POSTMAN-SALE-001\"\n}"
+              "raw": "{\n  \"productId\": 1,\n  \"quantity\": 2,\n  \"referenceId\": \"POS-SALE-8921\"\n}"
             },
             "url": { "raw": "{{baseUrl}}/inventory/sell", "host": ["{{baseUrl}}"], "path": ["inventory", "sell"] }
           }
         },
         {
-          "name": "Get Transactions Audit Log",
-          "request": {
-            "method": "GET",
-            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
-            "url": { "raw": "{{baseUrl}}/inventory/transactions", "host": ["{{baseUrl}}"], "path": ["inventory", "transactions"] }
-          }
-        }
-      ]
-    },
-    {
-      "name": "Restock & LangGraph Agent",
-      "item": [
-        {
-          "name": "Trigger Restock Agent",
+          "name": "Manual Stock Adjustment",
           "request": {
             "method": "POST",
             "header": [
@@ -135,13 +164,101 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"productId\": 2\n}"
+              "raw": "{\n  \"productId\": 1,\n  \"quantity\": 5,\n  \"type\": \"ADJUSTMENT\",\n  \"notes\": \"Annual physical warehouse audit correction\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/inventory/adjust", "host": ["{{baseUrl}}"], "path": ["inventory", "adjust"] }
+          }
+        },
+        {
+          "name": "Get Inventory Transactions Audit Log",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/inventory/transactions?limit=50", "host": ["{{baseUrl}}"], "path": ["inventory", "transactions"], "query": [{ "key": "limit", "value": "50" }] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Restocks & Replenishment",
+      "item": [
+        {
+          "name": "Get All Restock Requests",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/restocks", "host": ["{{baseUrl}}"], "path": ["restocks"] }
+          }
+        },
+        {
+          "name": "Get Restock Request by ID",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/restocks/1", "host": ["{{baseUrl}}"], "path": ["restocks", "1"] }
+          }
+        },
+        {
+          "name": "Trigger Restock Engine",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"productId\": 1\n}"
             },
             "url": { "raw": "{{baseUrl}}/restocks/trigger", "host": ["{{baseUrl}}"], "path": ["restocks", "trigger"] }
           }
         },
         {
-          "name": "Approve Restock (Resume HITL)",
+          "name": "Retry Restock Evaluation",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/restocks/1/retry", "host": ["{{baseUrl}}"], "path": ["restocks", "1", "retry"] }
+          }
+        },
+        {
+          "name": "Receive Stock Delivery",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/restocks/1/receive", "host": ["{{baseUrl}}"], "path": ["restocks", "1", "receive"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Approvals Queue (HITL)",
+      "item": [
+        {
+          "name": "Get Pending Approvals",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/approvals?status=PENDING", "host": ["{{baseUrl}}"], "path": ["approvals"], "query": [{ "key": "status", "value": "PENDING" }] }
+          }
+        },
+        {
+          "name": "Submit Approval Decision (Approve/Reject)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"threadId\": \"{{threadId}}\",\n  \"approved\": true\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/approvals/approve", "host": ["{{baseUrl}}"], "path": ["approvals", "approve"] }
+          }
+        },
+        {
+          "name": "Approve Restock (Alias Route)",
           "request": {
             "method": "POST",
             "header": [
@@ -156,24 +273,279 @@
           }
         },
         {
-          "name": "Receive Stock (ACID Transaction)",
+          "name": "Cancel Approval Item",
           "request": {
-            "method": "POST",
+            "method": "DELETE",
             "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
-            "url": { "raw": "{{baseUrl}}/restocks/1/receive", "host": ["{{baseUrl}}"], "path": ["restocks", "1", "receive"] }
+            "url": { "raw": "{{baseUrl}}/approvals/1", "host": ["{{baseUrl}}"], "path": ["approvals", "1"] }
           }
         }
       ]
     },
     {
-      "name": "Agent Audit Logs",
+      "name": "6. Purchase Orders",
       "item": [
         {
-          "name": "Get Agent Logs",
+          "name": "Get All Purchase Orders",
           "request": {
             "method": "GET",
             "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
-            "url": { "raw": "{{baseUrl}}/agent-logs", "host": ["{{baseUrl}}"], "path": ["agent-logs"] }
+            "url": { "raw": "{{baseUrl}}/purchase-orders", "host": ["{{baseUrl}}"], "path": ["purchase-orders"] }
+          }
+        },
+        {
+          "name": "Get Purchase Order by ID",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/purchase-orders/1", "host": ["{{baseUrl}}"], "path": ["purchase-orders", "1"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. Agent Logs",
+      "item": [
+        {
+          "name": "Get Agent Execution Logs",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/agent-logs?limit=50", "host": ["{{baseUrl}}"], "path": ["agent-logs"], "query": [{ "key": "limit", "value": "50" }] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "8. Operations Chat & AI Copilot",
+      "item": [
+        {
+          "name": "Get Chat History",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/chat/messages?limit=100", "host": ["{{baseUrl}}"], "path": ["chat", "messages"], "query": [{ "key": "limit", "value": "100" }] }
+          }
+        },
+        {
+          "name": "Send Chat Message",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"Warehouse shift handover: Shelf B-12 restock shipment arriving at 3 PM.\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/chat/messages", "host": ["{{baseUrl}}"], "path": ["chat", "messages"] }
+          }
+        },
+        {
+          "name": "Query AI Analytics Copilot (Groq LLM)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"query\": \"Which items are below safety threshold and have pending restock approvals?\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/chat/query", "host": ["{{baseUrl}}"], "path": ["chat", "query"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "9. Users & RBAC",
+      "item": [
+        {
+          "name": "Get Current User Profile",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/users/profile", "host": ["{{baseUrl}}"], "path": ["users", "profile"] }
+          }
+        },
+        {
+          "name": "List All Users (Admin / Manager)",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/users", "host": ["{{baseUrl}}"], "path": ["users"] }
+          }
+        },
+        {
+          "name": "Create User Account",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Alex Mercer\",\n  \"email\": \"alex@stockpilot.io\",\n  \"password\": \"password123\",\n  \"role\": \"STAFF\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/users", "host": ["{{baseUrl}}"], "path": ["users"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "10. Customer Refunds AI Agent",
+      "item": [
+        {
+          "name": "Process Refund Claim (AI Evaluation)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerName\": \"Alice Johnson\",\n  \"customerEmail\": \"alice@example.com\",\n  \"productId\": 1,\n  \"amount\": 75.00,\n  \"daysSincePurchase\": 5,\n  \"reason\": \"Wrong model ordered - unopened in box\",\n  \"customerMessage\": \"The box is completely unopened and in brand new condition, but I ordered the wrong model.\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/refunds/process", "host": ["{{baseUrl}}"], "path": ["refunds", "process"] }
+          }
+        },
+        {
+          "name": "Get Refund Requests List",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/refunds", "host": ["{{baseUrl}}"], "path": ["refunds"] }
+          }
+        },
+        {
+          "name": "Decide Refund (Manual Override)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"decision\": \"APPROVE\",\n  \"notes\": \"Approved as courtesy exception by manager\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/refunds/{{refundId}}/decide", "host": ["{{baseUrl}}"], "path": ["refunds", "{{refundId}}", "decide"] }
+          }
+        },
+        {
+          "name": "Send Customer Email for Refund ID",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customEmailBody\": \"Dear Alice,\\n\\nWe have approved your refund request. A credit of $75.00 has been initiated to your account.\\n\\nSincerely,\\nStockPilot Customer Care\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/refunds/{{refundId}}/send-email", "host": ["{{baseUrl}}"], "path": ["refunds", "{{refundId}}", "send-email"] }
+          }
+        },
+        {
+          "name": "Send Customer Email (Direct)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"toEmail\": \"alice@example.com\",\n  \"subject\": \"Update on your StockPilot Refund Request\",\n  \"emailBody\": \"Your refund has been approved successfully.\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/refunds/send-email", "host": ["{{baseUrl}}"], "path": ["refunds", "send-email"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "11. Vendor Intelligence & RFP Quotes",
+      "item": [
+        {
+          "name": "Get Sample Vendor Quotation PDFs",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/vendor-evaluations/samples", "host": ["{{baseUrl}}"], "path": ["vendor-evaluations", "samples"] }
+          }
+        },
+        {
+          "name": "Evaluate Vendor Quotations (PDF Upload)",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "documents", "type": "file", "src": [] },
+                { "key": "rfpCriteria", "type": "text", "value": "Evaluate pricing, lead time under 7 days, 1-year warranty, ISO certification." }
+              ]
+            },
+            "url": { "raw": "{{baseUrl}}/vendor-evaluations/evaluate", "host": ["{{baseUrl}}"], "path": ["vendor-evaluations", "evaluate"] }
+          }
+        },
+        {
+          "name": "Send Vendor Award Email",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"vendorEmail\": \"sales@apexparts.com\",\n  \"vendorName\": \"Apex Electronics Ltd\",\n  \"evaluationId\": 1,\n  \"notes\": \"Congratulations! Your quotation for keyboard switches has been selected.\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/vendor-evaluations/send-email", "host": ["{{baseUrl}}"], "path": ["vendor-evaluations", "send-email"] }
+          }
+        },
+        {
+          "name": "Send Vendor Award SMS (Twilio)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Authorization", "value": "Bearer {{accessToken}}" },
+              { "key": "Content-Type", "value": "application/json" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"vendorPhone\": \"+15550192800\",\n  \"vendorName\": \"Apex Electronics\",\n  \"notes\": \"StockPilot RFP Update: Your quotation has been awarded. Official PO has been dispatched to your email.\"\n}"
+            },
+            "url": { "raw": "{{baseUrl}}/vendor-evaluations/send-sms", "host": ["{{baseUrl}}"], "path": ["vendor-evaluations", "send-sms"] }
+          }
+        },
+        {
+          "name": "Get All Vendor RFP Evaluations",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/vendor-evaluations", "host": ["{{baseUrl}}"], "path": ["vendor-evaluations"] }
+          }
+        },
+        {
+          "name": "Get Vendor Evaluation by ID",
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/vendor-evaluations/{{evalId}}", "host": ["{{baseUrl}}"], "path": ["vendor-evaluations", "{{evalId}}"] }
+          }
+        },
+        {
+          "name": "Delete Vendor Evaluation",
+          "request": {
+            "method": "DELETE",
+            "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+            "url": { "raw": "{{baseUrl}}/vendor-evaluations/{{evalId}}", "host": ["{{baseUrl}}"], "path": ["vendor-evaluations", "{{evalId}}"] }
           }
         }
       ]

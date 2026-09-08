@@ -1,4 +1,5 @@
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import api from '../../services/api.ts';
 
 export interface RestockItem {
   id: number;
@@ -15,9 +16,10 @@ export interface RestockItem {
 export interface PurchaseOrderItem {
   id: number;
   productId: number;
-  product?: { name: string };
+  product?: { name: string; sku?: string };
   supplierName: string;
   supplierEmail: string;
+  supplierPhone?: string;
   quantity: number;
   unitCost: number;
   totalCost: number;
@@ -38,6 +40,46 @@ const initialState: RestocksState = {
   loading: false,
   error: null
 };
+
+// Async Thunks
+export const fetchRestockRequests = createAsyncThunk(
+  'restocks/fetchRestockRequests',
+  async (_, { rejectWithValue }) => {
+    try {
+      const res = await api.get<RestockItem[]>('/restocks');
+      return res.data;
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.error || err.message || 'Failed to fetch restock requests');
+    }
+  }
+);
+
+export const fetchPurchaseOrders = createAsyncThunk(
+  'restocks/fetchPurchaseOrders',
+  async (_, { rejectWithValue }) => {
+    try {
+      const res = await api.get<PurchaseOrderItem[]>('/purchase-orders');
+      return res.data;
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.error || err.message || 'Failed to fetch purchase orders');
+    }
+  }
+);
+
+export const receiveStockDelivery = createAsyncThunk(
+  'restocks/receiveStockDelivery',
+  async (
+    payload: { restockRequestId?: number; purchaseOrderId?: number },
+    { rejectWithValue }
+  ) => {
+    try {
+      const res = await api.post<{ success: boolean; message: string; purchaseOrder: PurchaseOrderItem }>('/inventory/receive', payload);
+      return res.data;
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.error || err.message || 'Failed to receive stock delivery');
+    }
+  }
+);
 
 export const restocksSlice = createSlice({
   name: 'restocks',
@@ -78,6 +120,48 @@ export const restocksSlice = createSlice({
       state.error = action.payload;
       state.loading = false;
     }
+  },
+  extraReducers: (builder) => {
+    // fetchRestockRequests
+    builder.addCase(fetchRestockRequests.pending, (state) => {
+      state.loading = true;
+      state.error = null;
+    });
+    builder.addCase(fetchRestockRequests.fulfilled, (state, action) => {
+      state.requests = action.payload;
+      state.loading = false;
+      state.error = null;
+    });
+    builder.addCase(fetchRestockRequests.rejected, (state, action) => {
+      state.loading = false;
+      state.error = action.payload as string;
+    });
+
+    // fetchPurchaseOrders
+    builder.addCase(fetchPurchaseOrders.pending, (state) => {
+      state.loading = true;
+      state.error = null;
+    });
+    builder.addCase(fetchPurchaseOrders.fulfilled, (state, action) => {
+      state.purchaseOrders = action.payload;
+      state.loading = false;
+      state.error = null;
+    });
+    builder.addCase(fetchPurchaseOrders.rejected, (state, action) => {
+      state.loading = false;
+      state.error = action.payload as string;
+    });
+
+    // receiveStockDelivery
+    builder.addCase(receiveStockDelivery.fulfilled, (state, action) => {
+      if (action.payload?.purchaseOrder) {
+        const po = action.payload.purchaseOrder;
+        const idx = state.purchaseOrders.findIndex(p => p.id === po.id);
+        if (idx !== -1) {
+          state.purchaseOrders[idx] = { ...state.purchaseOrders[idx], ...po, status: 'COMPLETED' };
+        }
+      }
+    });
   }
 });
 

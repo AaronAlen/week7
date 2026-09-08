@@ -3,6 +3,8 @@ import api from '../services/api.ts';
 import { POStatusBadge } from '../components/StatusBadge.tsx';
 import { RefreshCw, Mail } from 'lucide-react';
 import { useSocket } from '../context/SocketContext.tsx';
+import { useAppDispatch, useAppSelector } from '../store/index.ts';
+import { fetchPurchaseOrders } from '../store/slices/restocksSlice.ts';
 
 interface PurchaseOrder {
   id: number;
@@ -18,30 +20,21 @@ interface PurchaseOrder {
 }
 
 export const PurchaseOrders: React.FC = () => {
-  const [orders, setOrders] = useState<PurchaseOrder[]>([]);
-  const [loading, setLoading] = useState(true);
+  const dispatch = useAppDispatch();
+  const { purchaseOrders, loading } = useAppSelector((state) => state.restocks);
+  const orders = purchaseOrders as unknown as PurchaseOrder[];
   const socket = useSocket();
 
-  const fetchOrders = async () => {
-    try {
-      const res = await api.get('/purchase-orders');
-      setOrders(res.data || []);
-    } catch (err) {
-      console.error('Failed to load purchase orders', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    fetchOrders();
+    dispatch(fetchPurchaseOrders());
     if (socket) {
-      socket.on('data_updated', fetchOrders);
+      const onUpdate = () => { dispatch(fetchPurchaseOrders()); };
+      socket.on('data_updated', onUpdate);
       return () => {
-        socket.off('data_updated', fetchOrders);
+        socket.off('data_updated', onUpdate);
       };
     }
-  }, [socket]);
+  }, [dispatch, socket]);
 
   if (loading) {
     return (
@@ -60,7 +53,7 @@ export const PurchaseOrders: React.FC = () => {
           <p className="text-sm text-slate-400">Formal purchase orders generated and dispatched to suppliers</p>
         </div>
         <button
-          onClick={fetchOrders}
+          onClick={() => dispatch(fetchPurchaseOrders())}
           className="flex items-center space-x-2 bg-slate-800 hover:bg-slate-700 text-slate-300 px-3.5 py-2 rounded-xl text-sm border border-slate-700 transition"
         >
           <RefreshCw className="w-4 h-4" />

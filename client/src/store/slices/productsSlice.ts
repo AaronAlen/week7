@@ -1,4 +1,5 @@
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import api from '../../services/api.ts';
 
 export interface ProductItem {
   id: number;
@@ -33,6 +34,79 @@ const initialState: ProductsState = {
   searchQuery: '',
   stockFilter: 'all'
 };
+
+// Async Thunks
+export const fetchProducts = createAsyncThunk(
+  'products/fetchProducts',
+  async (_, { rejectWithValue }) => {
+    try {
+      const res = await api.get<ProductItem[]>('/products');
+      return res.data;
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.error || err.message || 'Failed to fetch products');
+    }
+  }
+);
+
+export const fetchProductById = createAsyncThunk(
+  'products/fetchProductById',
+  async (id: number, { rejectWithValue }) => {
+    try {
+      const res = await api.get<ProductItem>(`/products/${id}`);
+      return res.data;
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.error || err.message || 'Failed to fetch product');
+    }
+  }
+);
+
+export const createProduct = createAsyncThunk(
+  'products/createProduct',
+  async (productData: any, { rejectWithValue }) => {
+    try {
+      const res = await api.post<ProductItem>('/products', productData);
+      return res.data;
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.error || err.message || 'Failed to create product');
+    }
+  }
+);
+
+export const updateProduct = createAsyncThunk(
+  'products/updateProduct',
+  async ({ id, data }: { id: number; data: any }, { rejectWithValue }) => {
+    try {
+      const res = await api.put<ProductItem>(`/products/${id}`, data);
+      return res.data;
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.error || err.message || 'Failed to update product');
+    }
+  }
+);
+
+export const deleteProduct = createAsyncThunk(
+  'products/deleteProduct',
+  async (id: number, { rejectWithValue }) => {
+    try {
+      await api.delete(`/products/${id}`);
+      return id;
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.error || err.message || 'Failed to delete product');
+    }
+  }
+);
+
+export const triggerRestock = createAsyncThunk(
+  'products/triggerRestock',
+  async (productId: number, { rejectWithValue }) => {
+    try {
+      const res = await api.post<{ message: string; restockRequest?: any }>('/restocks/trigger', { productId });
+      return { productId, ...res.data };
+    } catch (err: any) {
+      return rejectWithValue(err.response?.data?.error || err.message || 'Failed to trigger restock');
+    }
+  }
+);
 
 export const productsSlice = createSlice({
   name: 'products',
@@ -77,6 +151,51 @@ export const productsSlice = createSlice({
     setStockFilter: (state, action: PayloadAction<string>) => {
       state.stockFilter = action.payload;
     }
+  },
+  extraReducers: (builder) => {
+    // fetchProducts
+    builder.addCase(fetchProducts.pending, (state) => {
+      state.loading = true;
+      state.error = null;
+    });
+    builder.addCase(fetchProducts.fulfilled, (state, action) => {
+      state.items = action.payload;
+      state.loading = false;
+      state.error = null;
+    });
+    builder.addCase(fetchProducts.rejected, (state, action) => {
+      state.loading = false;
+      state.error = action.payload as string;
+    });
+
+    // fetchProductById
+    builder.addCase(fetchProductById.fulfilled, (state, action) => {
+      state.selectedProduct = action.payload;
+    });
+
+    // createProduct
+    builder.addCase(createProduct.fulfilled, (state, action) => {
+      state.items.unshift(action.payload);
+    });
+
+    // updateProduct
+    builder.addCase(updateProduct.fulfilled, (state, action) => {
+      const idx = state.items.findIndex(p => p.id === action.payload.id);
+      if (idx !== -1) {
+        state.items[idx] = action.payload;
+      }
+      if (state.selectedProduct?.id === action.payload.id) {
+        state.selectedProduct = action.payload;
+      }
+    });
+
+    // deleteProduct
+    builder.addCase(deleteProduct.fulfilled, (state, action) => {
+      state.items = state.items.filter(p => p.id !== action.payload);
+      if (state.selectedProduct?.id === action.payload) {
+        state.selectedProduct = null;
+      }
+    });
   }
 });
 

@@ -41,6 +41,24 @@ export const runRestockProcurementAgent = async ({ productId, userId }) => {
     };
   }
 
+  // If product is already at or above target stock, no restock action is needed
+  if (product.currentStock >= product.targetStock) {
+    await AgentLog.create({
+      productId: product.id,
+      action: 'PROCUREMENT_EVALUATION',
+      status: 'OPTIMAL',
+      message: `Stock level for '${product.name}' is healthy (${product.currentStock}/${product.targetStock} units). No restock action required.`
+    });
+
+    return {
+      status: 'no_action_needed',
+      message: `Stock level for '${product.name}' is healthy (${product.currentStock}/${product.targetStock} units). No restock action required.`,
+      currentStock: product.currentStock,
+      targetStock: product.targetStock,
+      productName: product.name
+    };
+  }
+
   const recentSales = await InventoryTransaction.findAll({
     where: { productId, type: 'SALE' },
     limit: 20,

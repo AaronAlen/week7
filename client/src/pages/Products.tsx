@@ -18,11 +18,13 @@ import {
 import { Link } from 'react-router-dom';
 import { useSocket } from '../context/SocketContext.tsx';
 import { getImageUrl } from '../utils/imageUrl.ts';
+import { useAppDispatch, useAppSelector } from '../store/index.ts';
+import { fetchProducts, deleteProduct, triggerRestock } from '../store/slices/productsSlice.ts';
 
 export const Products: React.FC = () => {
-  const [products, setProducts] = useState<Product[]>([]);
+  const dispatch = useAppDispatch();
+  const { items: products, loading } = useAppSelector((state) => state.products);
   const [search, setSearch] = useState<string>('');
-  const [loading, setLoading] = useState<boolean>(true);
   const [uploadingId, setUploadingId] = useState<number | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [triggeringId, setTriggeringId] = useState<number | null>(null);
@@ -30,24 +32,14 @@ export const Products: React.FC = () => {
   const { hasRole } = useAuth();
   const socket = useSocket();
 
-  const fetchProducts = async () => {
-    try {
-      const res = await api.get<Product[]>('/products');
-      setProducts(res.data);
-    } catch (err) {
-      console.error('Failed to fetch products', err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    fetchProducts();
+    dispatch(fetchProducts());
     if (socket) {
-      socket.on('data_updated', fetchProducts);
-      return () => { socket.off('data_updated', fetchProducts); };
+      const onUpdate = () => { dispatch(fetchProducts()); };
+      socket.on('data_updated', onUpdate);
+      return () => { socket.off('data_updated', onUpdate); };
     }
-  }, [socket]);
+  }, [dispatch, socket]);
 
   const handleImageUpload = async (productId: number) => {
     if (!selectedFile) return;
@@ -61,7 +53,7 @@ export const Products: React.FC = () => {
       setMessage('Product image uploaded successfully!');
       setSelectedFile(null);
       setUploadingId(null);
-      fetchProducts();
+      dispatch(fetchProducts());
     } catch (err: any) {
       setMessage(err.response?.data?.error || 'Image upload failed');
     }
@@ -71,11 +63,11 @@ export const Products: React.FC = () => {
     setTriggeringId(productId);
     setMessage('');
     try {
-      const res = await api.post('/restocks/trigger', { productId });
-      setMessage(res.data.message);
-      fetchProducts();
+      const res = await dispatch(triggerRestock(productId)).unwrap();
+      setMessage(res.message || 'Restock triggered successfully');
+      dispatch(fetchProducts());
     } catch (err: any) {
-      setMessage(err.response?.data?.error || 'Failed to trigger restock');
+      setMessage(err || 'Failed to trigger restock');
     } finally {
       setTriggeringId(null);
     }
@@ -84,11 +76,10 @@ export const Products: React.FC = () => {
   const handleDelete = async (id: number, name: string) => {
     if (!window.confirm(`Are you sure you want to delete '${name}'?`)) return;
     try {
-      await api.delete(`/products/${id}`);
+      await dispatch(deleteProduct(id)).unwrap();
       setMessage(`Product '${name}' deleted.`);
-      fetchProducts();
     } catch (err: any) {
-      setMessage(err.response?.data?.error || 'Failed to delete product');
+      setMessage(err || 'Failed to delete product');
     }
   };
 

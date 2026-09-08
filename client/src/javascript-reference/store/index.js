@@ -37,8 +37,16 @@ export const store = configureStore({
     approvals: approvalsReducer,
     chat: chatReducer,
     theme: themeReducer
+  },
+  devTools: {
+    name: 'StockPilot Store',
+    trace: true
   }
 });
+
+if (typeof window !== 'undefined') {
+  window.store = store;
+}
 
 // In JS, custom hooks are simple wrappers around react-redux hooks
 export const useAppDispatch = () => useDispatch();

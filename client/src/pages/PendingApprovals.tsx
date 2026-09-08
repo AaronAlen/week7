@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import api from '../services/api.ts';
 import { ApprovalItem } from '../types/index.ts';
+import { useAppDispatch, useAppSelector } from '../store/index.ts';
+import { fetchApprovals, submitApprovalDecision } from '../store/slices/approvalsSlice.ts';
 import {
   CheckSquare,
   Check,
@@ -39,8 +41,10 @@ interface RefundItem {
 }
 
 export const PendingApprovals: React.FC = () => {
+  const dispatch = useAppDispatch();
+  const { items: approvalsList, loading: approvalsLoading } = useAppSelector((state) => state.approvals);
+  const approvals = approvalsList as unknown as ApprovalItem[];
   const [activeTab, setActiveTab] = useState<'restocks' | 'refunds'>('restocks');
-  const [approvals, setApprovals] = useState<ApprovalItem[]>([]);
   const [refunds, setRefunds] = useState<RefundItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | number | null>(null);
@@ -84,12 +88,11 @@ export const PendingApprovals: React.FC = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [appRes, refRes, prodRes] = await Promise.all([
-        api.get('/approvals'),
+      dispatch(fetchApprovals());
+      const [refRes, prodRes] = await Promise.all([
         api.get('/refunds?status=PENDING_APPROVAL'),
         api.get('/products')
       ]);
-      setApprovals(appRes.data || []);
       setRefunds(refRes.data || []);
       setProductsList(prodRes.data || []);
       if (prodRes.data?.length > 0 && !refundForm.productId) {
@@ -111,23 +114,13 @@ export const PendingApprovals: React.FC = () => {
     setProcessingId(threadId);
     setMessage('');
     setError('');
-    setApprovals(prev => prev.filter(item => item.threadId !== threadId));
 
     try {
-      let res;
-      try {
-        res = await api.post('/approvals/approve', { threadId, approved });
-      } catch (firstErr: any) {
-        if (firstErr.response?.status === 404) {
-          res = await api.post('/approve-restock', { threadId, approved });
-        } else {
-          throw firstErr;
-        }
-      }
+      const res = await dispatch(submitApprovalDecision({ threadId, approved })).unwrap();
       setMessage(res?.data?.message || 'Approval decision recorded successfully.');
       fetchData();
     } catch (err: any) {
-      setError(err.response?.data?.error || err.response?.data?.message || 'Failed to submit approval decision');
+      setError(err || 'Failed to submit approval decision');
       fetchData();
     } finally {
       setProcessingId(null);

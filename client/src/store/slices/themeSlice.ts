@@ -5,12 +5,25 @@ const getInitialTheme = (): 'light' | 'dark' => {
   return saved === 'light' ? 'light' : 'dark';
 };
 
+const applyThemeToDOM = (mode: 'light' | 'dark') => {
+  const isLight = mode === 'light';
+  const root = document.documentElement;
+  root.classList.toggle('light-theme', isLight);
+  root.classList.toggle('light', isLight);
+  root.classList.toggle('dark-theme', !isLight);
+  root.classList.toggle('dark', !isLight);
+  root.setAttribute('data-theme', mode);
+};
+
 export interface ThemeState {
   mode: 'light' | 'dark';
 }
 
+const initialMode = getInitialTheme();
+applyThemeToDOM(initialMode);
+
 const initialState: ThemeState = {
-  mode: getInitialTheme()
+  mode: initialMode
 };
 
 export const themeSlice = createSlice({
@@ -20,30 +33,12 @@ export const themeSlice = createSlice({
     toggleTheme: (state) => {
       state.mode = state.mode === 'dark' ? 'light' : 'dark';
       localStorage.setItem('stockpilot_theme', state.mode);
-      const root = document.documentElement;
-      if (state.mode === 'light') {
-        root.classList.add('light-theme', 'light');
-        root.classList.remove('dark-theme', 'dark');
-        root.setAttribute('data-theme', 'light');
-      } else {
-        root.classList.add('dark-theme', 'dark');
-        root.classList.remove('light-theme', 'light');
-        root.setAttribute('data-theme', 'dark');
-      }
+      applyThemeToDOM(state.mode);
     },
     setTheme: (state, action: PayloadAction<'light' | 'dark'>) => {
       state.mode = action.payload;
       localStorage.setItem('stockpilot_theme', state.mode);
-      const root = document.documentElement;
-      if (state.mode === 'light') {
-        root.classList.add('light-theme', 'light');
-        root.classList.remove('dark-theme', 'dark');
-        root.setAttribute('data-theme', 'light');
-      } else {
-        root.classList.add('dark-theme', 'dark');
-        root.classList.remove('light-theme', 'light');
-        root.setAttribute('data-theme', 'dark');
-      }
+      applyThemeToDOM(state.mode);
     }
   }
 });

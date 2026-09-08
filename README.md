@@ -1,68 +1,70 @@
-# StockPilot – Intelligent Inventory Restock Management System
+# 🚀 StockPilot – Intelligent Autonomous Inventory Restock & Procurement System
 
-> **Smart Inventory. Automated Restocking. Human Control.**
+> **Autonomous Inventory Management. Deterministic Supply Chain Logic. Semantic AI Intelligence. Human-in-the-Loop Control.**
 
-StockPilot is a full-stack inventory restock management system built with **React**, **Tailwind CSS**, **Node.js**, **Express.js**, **SQL database**, **Socket.IO**, **Nodemailer**, and **LangGraph.js** featuring **Human-in-the-Loop (HITL) approval workflows**.
+StockPilot is an enterprise-grade Autonomous Inventory Management, Procurement, and Operations Intelligence platform built with **React 18**, **TypeScript**, **Redux Toolkit (Async Thunks)**, **Tailwind CSS**, **Recharts**, **Node.js**, **Express.js (42 REST Endpoints)**, **Sequelize ORM (ACID Transactions)**, **Socket.IO**, **Groq AI (LLaMA 3.3 / GPT-OSS)**, and **Brevo REST API**.
 
 ---
 
 ## 🌟 Key Features
 
-- **Product Catalog Management**: Manage products, stock levels, safety thresholds, target stocks, unit costs, and supplier contact details.
-- **Product Image Upload**: Upload catalog product images using Multer (`POST /api/products/:id/image`).
-- **Sales & Stock Transactions**: Record sales, adjust stock, and automatically calculate low-stock status (`NORMAL`, `LOW_STOCK`, `OUT_OF_STOCK`).
-- **LangGraph Agent Workflow**: Stateful restock evaluation using LangGraph nodes, memory saver state checkpointers, and business logic calculations.
-- **Human-in-the-Loop (HITL) Approval**: Automatic PO creation and email dispatch for orders $\le \$1000$. Workflow interruption (`interrupt()`) for high-value orders ($> \$1000$) requiring explicit admin approval.
-- **Rejection Handling without Infinite Loops**: Rejections mark requests as `REJECTED` while leaving products in `LOW_STOCK` without entering endless approval loops.
-- **Receive Stock Workflow**: Execute ACID SQL transactions (`BEGIN` $\to$ stock increase $\to$ inventory transaction $\to$ PO marked `RECEIVED` $\to$ `COMMIT`).
-- **Real-Time Admin Chat**: Real-time staff/admin communications using Socket.IO, persisted in MySQL/SQLite.
-- **JWT & Role-Based Access Control (RBAC)**: Dual-token authentication (Access + Refresh) protecting routes across `ADMIN`, `MANAGER`, and `STAFF` roles.
-- **Swagger / OpenAPI Documentation**: Interactive API documentation at `/api-docs`.
-- **Automated Verification Test Suite**: Automated test suite (`npm test`) validating all 8 core scenarios.
+- **📊 Animated Executive Analytics Dashboard**: Real-time KPI telemetry with animated number counters, interactive animated Stock Capacity vs Safety Threshold Bar Graphs, Asset Valuation Area Charts, and Inventory Health Donut Charts powered by Recharts.
+- **⚡ Deterministic Restock Engine**: High-performance mathematical supply chain calculation engine computing dynamic sales velocity, days until stockout, and economic reorder quantities with zero LLM latency.
+- **🛡️ Human-in-the-Loop (HITL) Guardrails**: Automated Purchase Order creation and dispatch for orders $\le \$1,000$. Workflow boundary enforcement for high-value orders ($> \$1,000$) pausing in `PENDING_APPROVAL` for Administrator review.
+- **🧠 Operations Intelligence AI Copilot**: Natural language conversational assistant querying live database tables to provide instant insights on stockout risks, revenue trends, and supplier performance.
+- **📄 Supplier & RFP Quotation Intelligence Agent**: Uploads and extracts text from supplier quotation PDFs using `pdf-parse` and evaluates competitive proposals across pricing, MOQs, warranty, defect SLAs, and ISO compliance via Groq LLM.
+- **💰 Customer Service & Refund Agent**: Evaluates return requests against store policies, auto-approving low-risk claims ($\le \$150$) and generating personalized customer email drafts.
+- **🔄 Centralized Redux Toolkit Architecture**: Fully modernized frontend state management using Redux Toolkit `createAsyncThunk` across 7 slices with real-time WebSocket state reconciliation.
+- **📧 Zero-Timeout Universal Email Dispatcher**: Supports **Brevo HTTPS REST API (Port 443)** to completely eliminate cloud firewall SMTP port 587 timeouts on Render/AWS/DigitalOcean, with fallback to standard SMTP relay and Twilio SMS.
+- **🔒 ACID Transactional Integrity**: Guarantees zero stock corruption across sales, adjustments, and deliveries via atomic database transactions (`BEGIN` $\to$ stock update $\to$ transaction log $\to$ `COMMIT`).
+- **💬 Real-Time Staff Communication**: WebSockets chat stream powered by Socket.IO for warehouse staff coordination.
+- **🔐 JWT Dual-Token RBAC Security**: Granular access control across `ADMIN`, `MANAGER`, and `STAFF` roles with auto-refreshing JWTs.
 
 ---
 
-## 🏗️ High-Level Application Architecture
+## 🏗️ System Architecture
 
 ```text
-React + Tailwind Frontend (Port 5173 / Vite)
-          │
-          │ REST API & WebSockets
-          ↓
-Express.js Backend (Port 5000)
-          │
- ┌────────┼─────────────┬────────────────┐
- ↓        ↓             ↓                ↓
-Auth   Inventory     Restock         Socket.IO
- │        │             │                │
- ↓        ↓             ↓                ↓
-JWT    MySQL/SQLite  LangGraph       Real-Time
-RBAC   Transactions  Workflow         Chat
-          │             │
-          │      ┌──────┴──────┐
-          │      ↓             ↓
-          │   Auto PO      HITL Approval
-          │   (≤$1000)       (>$1000)
-          │      ↓             ↓
-          │      └──────┬──────┘
-          │             ↓
-          │        Supplier Email (Nodemailer)
-          │
-          ├── File Upload (Multer)
-          ├── Agent Activity Logs
-          └── Swagger API Specs (/api-docs)
+┌─────────────────────────────────────────────────────────────────────────┐
+│                    REACT + VITE + TAILWIND FRONTEND                     │
+│  • Redux Toolkit (createAsyncThunk)  • Operations AI Copilot            │
+│  • Animated Recharts (Bar/Area/Pie)  • WebSockets Staff Communication   │
+└────────────────────────────────────┬────────────────────────────────────┘
+                                     │ REST API (Axios) / WSS
+                                     ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│                       EXPRESS.JS BACKEND ENGINE                         │
+│  ┌───────────────────────┬────────────────────────┬───────────────────┐ │
+│  │ JWT & RBAC Middleware │ Input Validation (Zod) │ WebSockets Server │ │
+│  ├───────────────────────┼────────────────────────┼───────────────────┤ │
+│  │ 42 REST API Endpoints │ Multer & pdf-parse     │ Swagger UI Docs   │ │
+│  └───────────────────────┴────────────────────────┴───────────────────┘ │
+└────────────────────────────────────┬────────────────────────────────────┘
+                                     │
+        ┌─────────────────────────────┼─────────────────────────────┐
+        ▼                             ▼                             ▼
+┌──────────────┐             ┌──────────────┐             ┌──────────────┐
+│  DATABASE    │             │  AI AGENTS   │             │ NOTIFICATION │
+│ PERSISTENCE  │             │  REASONING   │             │   GATEWAY    │
+├──────────────┤             ├──────────────┤             ├──────────────┤
+│ • MySQL /    │             │ • Groq LLMs  │             │ • Brevo REST │
+│   SQLite     │             │ • Operations │             │   API (443)  │
+│ • Sequelize  │             │   Copilot    │             │ • Brevo SMTP │
+│ • ACID Atomic│             │ • Vendor PDF │             │ • Twilio SMS │
+│   Inventory  │             │   Evaluator  │             │   Alerts     │
+│ • Audit Logs │             │ • Refund AI  │             │              │
+└──────────────┘             └──────────────┘             └──────────────┘
 ```
 
 ---
 
 ## 🛠️ Technology Stack
 
-- **Language**: JavaScript ES Modules (`.js`). No TypeScript.
-- **Frontend**: React 18, Vite, Tailwind CSS, Lucide React, Axios, Socket.IO Client.
-- **Backend**: Express.js (Node.js), Socket.IO, Multer, Nodemailer, Zod, Bcrypt, JsonWebToken.
-- **Agent Workflow Engine**: `@langchain/langgraph` (v0.2+), `@langchain/core`.
-- **Database Layer**: Sequelize ORM over MySQL/SQLite with ACID transaction semantics.
-- **Documentation**: Swagger OpenAPI (`swagger-ui-express`, `swagger-jsdoc`), Postman Collection.
+- **Frontend**: React 18, Vite, TypeScript, Tailwind CSS, Redux Toolkit 2.x, Recharts, Lucide React, Axios, Socket.IO Client.
+- **Backend**: Node.js, Express.js (42 endpoints), Socket.IO, Multer, `pdf-parse`, Nodemailer, Brevo REST API, Twilio SDK, Zod, Bcrypt, JsonWebToken.
+- **AI & Reasoning Engine**: Groq Cloud SDK (`llama-3.3-70b-versatile`, `qwen/qwen3.8-27b`).
+- **Database Layer**: Sequelize ORM over MySQL or SQLite with full ACID transaction semantics.
+- **Documentation**: Swagger OpenAPI 3.0 UI (`/api-docs`), Markdown specification guides.
 
 ---
 
@@ -75,63 +77,43 @@ npm run install:all
 ```
 
 ### 2. Environment Setup
-Copy `.env.example` to `.env`:
+Create your `.env` file in the root and server directory:
 ```bash
 cp .env.example .env
 ```
 
-### 3. Seed Sample Database
-Initialize database tables and seed sample products and demo users:
+Key environment variables:
+```bash
+PORT=5000
+DB_DIALECT=sqlite # or mysql
+GROQ_API_KEY=gsk_...
+BREVO_API_KEY=xkeysib-...
+TWILIO_ACCOUNT_SID=AC...
+TWILIO_AUTH_TOKEN=...
+```
+
+### 3. Database Initialization & Seed
 ```bash
 npm run seed
 ```
 
-### 4. Run Automated Test Suite
-Verify all 8 core inventory, LangGraph agent, HITL approval, and transaction scenarios:
-```bash
-npm test
-```
-
-### 5. Start Development Application
-Launch Express server and Vite frontend concurrently:
+### 4. Start Development Servers
+Launch both Express backend (Port 5000) and Vite frontend (Port 5173):
 ```bash
 npm run dev
 ```
 
-- **React Frontend**: `http://localhost:5173`
-- **Express Backend API**: `http://localhost:5000`
-- **Swagger API Docs**: `http://localhost:5000/api-docs`
-
 ---
 
-## 🔑 Demo Account Credentials
+## 📚 Detailed Documentation
 
-Default accounts seeded by `npm run seed` (Password for all: `password123`):
-
-- **Admin Account**: `admin@stockpilot.io` (Role: `ADMIN`)
-- **Manager Account**: `manager@stockpilot.io` (Role: `MANAGER`)
-- **Staff Account**: `staff@stockpilot.io` (Role: `STAFF`)
-
----
-
-## 📚 Project Documentation Map
-
-Detailed documentation files are available in the `docs/` directory:
-
-- [`docs/IMPLEMENTATION_PLAN.md`](file:///c:/Users/aaron/Desktop/gwc/week7/docs/IMPLEMENTATION_PLAN.md) — Technical Implementation Plan
-- [`docs/ARCHITECTURE.md`](file:///c:/Users/aaron/Desktop/gwc/week7/docs/ARCHITECTURE.md) — System Architecture Details
-- [`docs/DATABASE_DESIGN.md`](file:///c:/Users/aaron/Desktop/gwc/week7/docs/DATABASE_DESIGN.md) — Relational SQL Database Schema & ACID Design
-- [`docs/API_DOCUMENTATION.md`](file:///c:/Users/aaron/Desktop/gwc/week7/docs/API_DOCUMENTATION.md) — REST API Endpoints Reference
-- [`docs/AUTHENTICATION.md`](file:///c:/Users/aaron/Desktop/gwc/week7/docs/AUTHENTICATION.md) — JWT Access & Refresh Token Architecture
-- [`docs/RBAC.md`](file:///c:/Users/aaron/Desktop/gwc/week7/docs/RBAC.md) — Role-Based Access Control Permissions Matrix
-- [`docs/LANGGRAPH_WORKFLOW.md`](file:///c:/Users/aaron/Desktop/gwc/week7/docs/LANGGRAPH_WORKFLOW.md) — LangGraph State Graph & Nodes
-- [`docs/HITL_WORKFLOW.md`](file:///c:/Users/aaron/Desktop/gwc/week7/docs/HITL_WORKFLOW.md) — Human-in-the-Loop Interrupt & Approval Logic
-- [`docs/INVENTORY_WORKFLOW.md`](file:///c:/Users/aaron/Desktop/gwc/week7/docs/INVENTORY_WORKFLOW.md) — Stock Mutations & Receive Stock ACID Transactions
-- [`docs/FILE_UPLOAD.md`](file:///c:/Users/aaron/Desktop/gwc/week7/docs/FILE_UPLOAD.md) — Multer Product Image Upload Guide
-- [`docs/WEBSOCKET_CHAT.md`](file:///c:/Users/aaron/Desktop/gwc/week7/docs/WEBSOCKET_CHAT.md) — Socket.IO Real-Time Chat Engine
-- [`docs/TESTING.md`](file:///c:/Users/aaron/Desktop/gwc/week7/docs/TESTING.md) — Automated Test Suite Guide
-- [`docs/SECURITY_AUDIT.md`](file:///c:/Users/aaron/Desktop/gwc/week7/docs/SECURITY_AUDIT.md) — Security Audit Controls
-- [`docs/POSTMAN_GUIDE.md`](file:///c:/Users/aaron/Desktop/gwc/week7/docs/POSTMAN_GUIDE.md) — Postman API Collection Setup
-- [`docs/DEPLOYMENT_GUIDE.md`](file:///c:/Users/aaron/Desktop/gwc/week7/docs/DEPLOYMENT_GUIDE.md) — Production Deployment Steps
-- [`docs/WEEKLY_CONCEPT_MAPPING.md`](file:///c:/Users/aaron/Desktop/gwc/week7/docs/WEEKLY_CONCEPT_MAPPING.md) — Detailed Weeks 1–7 Concept Mapping
-- [`docs/WALKTHROUGH.md`](file:///c:/Users/aaron/Desktop/gwc/week7/docs/WALKTHROUGH.md) — Final Walkthrough & Test Results Report
+- 📘 **[Complete Master Project Documentation (All-in-One)](docs/MASTER_PROJECT_DOCUMENTATION.md)**
+- 📡 [REST API Documentation & Endpoints (All 42 Endpoints)](docs/API_DOCUMENTATION.md)
+- 🏛️ [System Architecture & Subsystems](docs/ARCHITECTURE.md)
+- 🛡️ [Role-Based Access Control (RBAC) Specification](docs/RBAC.md)
+- 🤖 [Autonomous AI Agents Architecture Guide](docs/AI_AGENTS_ARCHITECTURE.md)
+- 📬 [Postman API Collection Guide](docs/POSTMAN_GUIDE.md)
+- 🛡️ [Human-in-the-Loop Workflow Specification](docs/HITL_WORKFLOW.md)
+- 📦 [Inventory Transaction & ACID Semantics](docs/INVENTORY_WORKFLOW.md)
+- 📘 [JavaScript vs TypeScript Redux Cheatsheet](client/src/javascript-reference/README-TS-VS-JS.md)
+- 🚀 [Cloud Production Deployment Guide](docs/DEPLOYMENT_GUIDE.md)

@@ -17,8 +17,16 @@ export const store = configureStore({
     approvals: approvalsReducer,
     chat: chatReducer,
     theme: themeReducer
+  },
+  devTools: {
+    name: 'StockPilot Store',
+    trace: true
   }
 });
+
+if (typeof window !== 'undefined') {
+  (window as any).store = store;
+}
 
 export type RootState = ReturnType<typeof store.getState>;
 export type AppDispatch = typeof store.dispatch;
